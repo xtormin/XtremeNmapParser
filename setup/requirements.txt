@@ -1,0 +1,5 @@
+pandas
+jinja2
+openpyxl
+confuse
+xlsxwriter

@@ -1,0 +1,16 @@
+appname: "Xtreme Nmap Parser"
+
+xlsx:
+  sheet_name: "Nmap Scan Results"
+  headers_color: "#9D2911"
+  table_style: "Table Style Medium 16"
+  headers: [ 'Hostname',
+              'IP',
+              'State',
+              'Port',
+              'Protocol',
+              'State Port',
+              'Service Name',
+              'Product',
+              'Version',
+              'Extrainfo']
