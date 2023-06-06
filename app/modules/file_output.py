@@ -13,7 +13,18 @@ config.set_file('config/config.yaml')
 HEADERS = config['xlsx']['headers'].get()
 SHEET_NAME = config['xlsx']['sheet_name'].get()
 HEADERS_COLOR = config['xlsx']['headers_color'].get()
+HEADERS_TEXT_COLOR = config['xlsx']['headers_text_color'].get()
 TABLE_STYLE = config['xlsx']['table_style'].get()
+
+def adjust_columns(worksheet, df):
+    for i, col in enumerate(df.columns):
+        # find length of column i
+        column_len = df[col].astype(str).str.len().max()
+        # Setting the length if the column header is larger
+        # than the max column value length
+        column_len = max(column_len, len(col)) + 2
+        # set the column length
+        worksheet.set_column(i, i, column_len)
 
 def df_to_xlsx(df, filename):
     try:
@@ -39,24 +50,14 @@ def df_to_xlsx(df, filename):
         bold = workbook.add_format().set_bold()
 
         # Columns format
-        worksheet.set_column('A1:E', None, center_format)
-        worksheet.set_column(0, 0, 20)
-        worksheet.set_column(1, 1, 15)
-        worksheet.set_column(2, 2, 8)
-        worksheet.set_column(3, 3, 12)
-        worksheet.set_column(4, 4, 15)
-        worksheet.set_column(5, 5, 15)
-        worksheet.set_column(6, 6, 15)
-        worksheet.set_column(7, 7, 30)
-        worksheet.set_column(8, 8, 25)
-        worksheet.set_column(9, 9, 20)
+        adjust_columns(worksheet, df)
 
 
         # Header format
         header_format = workbook.add_format()
         header_format.set_bg_color(HEADERS_COLOR)
         header_format.set_bold()
-        header_format.set_font_color('#FFFFFF')
+        header_format.set_font_color(HEADERS_TEXT_COLOR)
         header_format.set_center_across()
 
         # Table headers with custom format

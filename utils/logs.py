@@ -3,11 +3,11 @@ import logging
 def setup_logging():
     # Create a log handler for the console
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
 
     # Create a log handler for the file
     file_handler = logging.FileHandler(filename='app.log', mode='w')
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(logging.DEBUG)
 
     # Log format for the file
     file_formatter = logging.Formatter(f'%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -22,4 +22,4 @@ def setup_logging():
 
     # Configure the logging
     logging.basicConfig(handlers=[file_handler, console_handler],
-                        level=logging.INFO)
+                        level=logging.DEBUG)
