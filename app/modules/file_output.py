@@ -1,5 +1,10 @@
+import logging
 import confuse
 import pandas as pd
+from utils.logs import setup_logging
+
+# Logging configuration
+setup_logging()
 
 # LOAD CONFIG FROM YAML FILE
 config = confuse.Configuration('XNP', __name__)
@@ -66,10 +71,10 @@ def df_to_xlsx(df, filename):
         # Close XLSX file
         writer.close()
 
-        print(f"    |+| Output | xlsx | {filename}")
+        logging.info(f"    |+| Output | xlsx | {filename}")
     except Exception as e:
-        print(f"|x| Error output | {filename} file not created")
-        print(e)
+        logging.error(f"|x| Error output | {filename} file not created")
+        logging.error(e)
 
 def df_to_csv(df, filename):
     try:
@@ -78,7 +83,7 @@ def df_to_csv(df, filename):
                   encoding='utf-8',
                   header=None,
                   index=False)
-        print(f"    |+| Output | csv | {filename}")
+        logging.info(f"    |+| Output | csv | {filename}")
     except Exception as e:
-        print(f"|x| Error output | {filename} file not created")
-        print(e)
+        logging.error(f"|x| Error output | {filename} file not created")
+        logging.error(e)

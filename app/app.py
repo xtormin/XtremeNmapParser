@@ -1,9 +1,14 @@
 import os
 import confuse
+import logging
 from utils import cli
 from utils import banner
+from utils.logs import setup_logging
 import app.modules.nmap_parser as nmap
 from app.modules import file_output
+
+# Logging configuration
+setup_logging()
 
 # LOAD CONFIG FROM YAML FILE
 config = confuse.Configuration('XNP', __name__)
@@ -12,7 +17,7 @@ config.set_file('config/config.yaml')
 APPNAME = config['appname'].get()
 
 def parse_file(filename):
-    print(f"    |+| Parsing | {filename}")
+    logging.info(f"    |+| Parsing | {filename}")
     df = nmap.parser(filename)
     return df
 
@@ -71,7 +76,7 @@ def run():
                 full_path = folder + xmlfile
                 df = parse_file(full_path)
                 if df.empty:
-                    print(f"    |?| Warning | {full_path} has no data, omitting export")
+                    logging.info(f"    |?| Warning | {full_path} has no data, omitting export")
                 else:
                     export_data(output_format_list, df, full_path)
 
@@ -79,5 +84,5 @@ def run():
         print("\n")
 
     except Exception as e:
-        print("|-| Error executing script")
-        print(e)
+        logging.error("|-| Error executing script")
+        logging.error(e)

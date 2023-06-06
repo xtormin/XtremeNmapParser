@@ -1,7 +1,12 @@
 import sys
 import confuse
+import logging
 import pandas as pd
 import xml.etree.ElementTree as ET
+from utils.logs import setup_logging
+
+# Logging configuration
+setup_logging()
 
 # LOAD CONFIG FROM YAML FILE
 config = confuse.Configuration('XNP', __name__)
@@ -59,5 +64,6 @@ def parser(nmapxmlfile):
 
         return df
     except Exception as e:
-        print(f"|x| Error parsing | {nmapxmlfile}")
+        logging.error(f"|x| Error parsing | {nmapxmlfile}")
+        logging.error(e)
         sys.exit(0)
