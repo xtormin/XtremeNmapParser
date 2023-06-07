@@ -1,14 +1,12 @@
 import confuse
 import logging
-from utils import cli
-from utils import banner
-from utils import functions as func
-from utils.logs import setup_logging
-import app.modules.nmap_parser as nmap
-from app.modules import file_output
+from app.utils import cli, banner, functions as func
+from app.utils.logs import CustomLogger
+import app.modules.parser_nmap as nmap
+from app.modules import output_format
 
 # Logging configuration
-setup_logging()
+logger = CustomLogger('test')
 
 # LOAD CONFIG FROM YAML FILE
 config = confuse.Configuration('XNP', __name__)
@@ -27,7 +25,7 @@ folder_xml_to_parse = args.nmapxmldir
 
 def export_data(df, file_xml):
     if df.empty:
-        logging.warning(f"    |?| Warning | {file_xml} has no data, omitting export")
+        logger.warning(f" |?| Warning | {file_xml} has no data, omitting export")
     else:
         if file_xml:
             outputname = file_xml.split(NMAP_FILE_EXTENSION)[0]
@@ -38,36 +36,19 @@ def export_data(df, file_xml):
             else:
                 outputname = "merged_nmap_scan_data"
 
-        for output_format in output_format_list:
-            output_file_xml = f"{outputname}.{output_format}"
-            if output_format == "csv":
-                file_output.df_to_csv(df, output_file_xml)
-
-            if output_format == "xlsx":
-                file_output.df_to_xlsx(df, output_file_xml)
-
-def print_arguments_info(file_xml, folder):
-    print(f"""  
-    --------------------------------------------------------------  
-    | Arguments information  
-    --------------------------------------------------------------  
-    | File (-f)          | {file_xml}  
-    | Folder (-d)        | {folder}  
-    | Merge files (-M)   | {merger}  
-    | Output format (-o) | {output_format_list}  
-    --------------------------------------------------------------  
-    """)
-
-def print_progress_info():
-    # Parse files
-    print(f"""
-    --------------------------------------------------------------
-    | Parsing files
-    --------------------------------------------------------------\n""")
+        for output_format_type in output_format_list:
+            output_file_xml = f"{outputname}.{output_format_type}"
+            if output_format_type == "csv":
+                output_format.df_to_csv(df, output_file_xml)
+            elif output_format_type == "xlsx":
+                output_format.df_to_xlsx(df, output_file_xml)
+            elif output_format_type == "json":
+                output_format.df_to_json(df, output_file_xml)
 
 def file_parse_output(file_xml):
     df = nmap.parse_file(file_xml)
-    export_data(df, file_xml)
+    if df is not None:
+        export_data(df, file_xml)
 
 def parse_and_export_files(file_xml, folder):
     ## Nmap XLM file
@@ -76,27 +57,31 @@ def parse_and_export_files(file_xml, folder):
 
     ## Directory with multiple nmap XML files
     if folder:
-        folder_files = func.get_dir_files(folder)
-        files_xml = [folder + i for i in folder_files if i.endswith(".xml")]
+        try:
+            folder_files = func.get_dir_files(folder)
+            files_xml = [folder + i for i in folder_files if i.endswith(NMAP_FILE_EXTENSION)]
 
-        if merger:
-            df = nmap.merge_xml_files(files_xml)
-            export_data(df, file_xml)
+            if merger:
+                df = nmap.merge_xml_files(files_xml)
+                export_data(df, file_xml)
 
-        else:
-            for file_xml in files_xml:
-                file_parse_output(file_xml)
+            else:
+                for file_xml in files_xml:
+                    file_parse_output(file_xml)
+                    print("\n")
+        except FileNotFoundError:
+            logger.error(f"|-| File {folder} not found")
+        except NotADirectoryError:
+            logger.error(f"|-| Are you sure that {folder} is a directory?")
 
 def run():
 
-    banner.ascii()
+    banner.main()
 
     # Show arguments info
-    print_arguments_info(file_xml_to_parse, folder_xml_to_parse)
+    banner.print_arguments_info(file_xml_to_parse, folder_xml_to_parse, merger, output_format_list)
 
     # Show parsing info
-    print_progress_info()
+    banner.print_progress_info()
     parse_and_export_files(file_xml_to_parse, folder_xml_to_parse)
-
-    print("\n")
 
