@@ -132,3 +132,4 @@ dmypy.json
 examples
 .DS_Store
 .idea
+merged_nmap_scan_data.*
