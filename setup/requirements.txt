@@ -3,3 +3,5 @@ jinja2
 openpyxl
 confuse
 xlsxwriter
+termcolor
+coloredlogs
