@@ -85,3 +85,5 @@ def run():
     banner.print_progress_info()
     parse_and_export_files(file_xml_to_parse, folder_xml_to_parse)
 
+    print("\n")
+
