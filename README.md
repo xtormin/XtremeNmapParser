@@ -7,11 +7,6 @@ XML Nmap Parser (XNP) is a Python-based utility designed to parse XML files gene
   * [Key Benefits](#key-benefits)
 * [Install](#install)
 * [Usage](#usage)
-  * [Single XML file](#single-xml-file)
-  * [Multiple XML files](#multiple-xml-files)
-    * [Each XML File to XLSX/CSV/JSON](#each-xml-file-to-xlsxcsvjson)
-    * [Merging XML files](#merging-xml-files)
-* [Output example](#output-example)
 * [Configuration](#configuration)
 * [License](#license)
 <!-- TOC -->
@@ -29,103 +24,14 @@ XML Nmap Parser (XNP) is a Python-based utility designed to parse XML files gene
 - **Network-Wide Vulnerability Detection:** If a vulnerable service is detected on one host, XNP can be used to swiftly search for other hosts in the network potentially running the same service, assisting in identifying vulnerabilities across the network.
 - **Easy Data Export:** The ability to effortlessly copy and paste data about vulnerable hosts, filtered by service version, can be a practical feature. It simplifies the documentation of findings, data sharing with colleagues, and inputting data into other tools or reports.
 
-In summary, XNP is a tool designed to simplify the life of a pentester. By automating the processing and analysis of Nmap output, XNP allows you to focus on the most crucial part of your job: interpreting the results and planning better strategies }8)
-
-
 # Install
 
-1. Clone this repository: 
-```
-git clone https://github.com/xtormin/XtremeNmapParser.git
-```
-2. Navigate to the XNP directory:
-```
-cd XtremeNmapParser
-```
-3. Install the necessary Python packages: 
-```
-pip install -r requirements.txt
-```
-or
-```
-python3 -m venv venv
-source venv/bin/activate
-python3 -m pip install -r setup/requirements.txt
-```
-4. Run XNP.
+The installation information can be found in the '[Install](https://github.com/xtormin/XtremeNmapParser/wiki/WIKI#install)' section of the wiki.
 
 # Usage
 
-Example of nmap scan:
+The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/WIKI#usage)' section of the wiki.
 
-```
-nmap -T4 -Pn -open --script=default,version,vuln -A -p- -oA nmap/tcp-full-scripts 10.10.1.9
-```
-
-## Single XML file
-
-To convert the XML file, you can use the following command:
-
-```
-python3 xnp.py -f <nmap XML file> -o <list with output formats>
-python3 xnp.py -f nmap/tcp-full-scripts.xml -o csv,xlsx,json
-```
-
-![single_scan.png](resources%2Fimages%2Fsingle_scan.png)
-
-| Argument | Description                                                                                                                                                                                                  |
-|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **-f**   | The -f flag is used to specify the input file to the XNP script. In this case, nmap/tcp-full-scripts.xml is the Nmap XML file that you want to parse.                                                        |
-| **-o**   | The -o flag is used to specify the output format(s) for the parsed data. In this case, you are asking XNP to export the parsed data in both CSV (Comma-Separated Values) and XLSX (Microsoft Excel) formats. |
-
-## Multiple XML files
-
-### Each XML File to XLSX/CSV/JSON
-
-The following command will produce a CSV/XLSX file for each XML file in the specified folder. The CSV/XLSX will be saved in the same location as the original.
-
-To convert all XML files in a folder, you can use the following command:
-
-```
-python3 xnp.py -d <folder with nmap XML files> -o <list with output formats>
-python3 xnp.py -d nmap/ -o csv,xlsx,json
-```
-
-![multiple_scans.png](resources%2Fimages%2Fmultiple_scans.png)
-
-
-### Merging XML files
-
-The following command will produce a single XLSX/CSV file that contains the merged data from all of the XML files in the specified folder.
-
-To merge all nmap XML files and generate a file with the result, you can use the following command:
-
-1. Default output name "merged_nmap_scan_data":
-```
-python3 xnp.py -d <folder with nmap XML files> -o <list with output formats> -M
-python3 xnp.py -d nmap/ -o csv,xlsx,json -M
-```
-
-![multiple_merged_default.png](resources%2Fimages%2Fmultiple_merged_default.png)
-
-2. Other output name:
-```
-python3 xnp.py -d <folder with nmap XML files> -o <list with output formats> -M -O <output name>
-python3 xnp.py -d nmap/ -o csv,xlsx,json -M -O merged_nmap_scan_data
-```
-
-![multiple_merged_outputname.png](resources%2Fimages%2Fmultiple_merged_outputname.png)
-
-# Output example
-
-You will get the following information:
-
-```
-Hostname;IP;State;Port;Protocol;State Port; Service Name; Product; Version; Extrainfo
-xtormin.local;10.10.1.9;up;445;tcp;open;microsoft-ds;Windows Server 2016 Standard 14393 microsoft-ds;;
-xtormin.local;10.10.1.9;up;1433;tcp;open;ms-sql-s;Microsoft SQL Server 2017;"14.00.1000.00; RTM";
-xtormin.local;10.10.1.9;up;3389;tcp;open;ms-wbt-server;Microsoft Terminal Services;;
-```
 
 # Configuration
 
