@@ -1,13 +1,12 @@
-import os
 import sys
 import confuse
 import logging
 import pandas as pd
 import xml.etree.ElementTree as ET
-from utils.logs import setup_logging
+from app.utils.logs import CustomLogger
 
 # Logging configuration
-setup_logging()
+logger = CustomLogger('test')
 
 # LOAD CONFIG FROM YAML FILE
 config = confuse.Configuration('XNP', __name__)
@@ -64,13 +63,13 @@ def parser(nmapxmlfile):
             df = pd.DataFrame(output, columns=HEADERS)
 
         return df
-    except Exception as e:
-        logging.error(f"|x| Error parsing | {nmapxmlfile}")
-        logging.error(e)
-        sys.exit(0)
+
+    except ET.ParseError as e:
+        logger.error(f" |x| Error |  Error processing the {nmapxmlfile} XML file. It's possible that the scanner did not finish properly and the information is corrupted.")
+        logger.error(e)
 
 def parse_file(file_xml):
-    logging.info(f"    |+| Parsing | {file_xml}")
+    logger.info(f" |+| Parsing | {file_xml}")
     df = parser(file_xml)
     return df
 
