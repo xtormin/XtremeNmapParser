@@ -1,6 +1,4 @@
-import sys
 import confuse
-import logging
 import pandas as pd
 import xml.etree.ElementTree as ET
 from app.utils.logs import CustomLogger

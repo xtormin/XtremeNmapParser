@@ -1,5 +1,4 @@
 import confuse
-import logging
 from app.utils import cli, banner, functions as func
 from app.utils.logs import CustomLogger
 import app.modules.parser_nmap as nmap

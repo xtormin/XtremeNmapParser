@@ -1,7 +1,6 @@
 import logging
 import coloredlogs
 
-
 class CustomLogger(logging.Logger):
     def __init__(self, name):
         super().__init__(name)
