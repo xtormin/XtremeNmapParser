@@ -11,10 +11,6 @@ For instance, you can:
 - If a vulnerable service is detected, rapidly search for other potentially vulnerable hosts.
 - Copy and paste data of vulnerable hosts, filtered by service version.
 
-The following image is an example of the output information in XLSX format:
-
-![Filter example of SSH services](utils/images/filter_example.png)
-
 ## Install
 
 ```
