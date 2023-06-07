@@ -1,3 +1,4 @@
+import os
 import sys
 import confuse
 import logging
@@ -67,3 +68,40 @@ def parser(nmapxmlfile):
         logging.error(f"|x| Error parsing | {nmapxmlfile}")
         logging.error(e)
         sys.exit(0)
+
+def parse_file(file_xml):
+    logging.info(f"    |+| Parsing | {file_xml}")
+    df = parser(file_xml)
+    return df
+
+def merge_xml_files(xml_files):
+    # Initialize a list to store the dataframes
+    df_list = []
+
+    # Loop over the XML files and append their data to df_all
+    for xml_file in xml_files:
+        df = parse_file(xml_file)
+
+        # Append the dataframe to df_list
+        df_list.append(df)
+
+    # Concatenate all dataframes in df_list
+    df_all = pd.concat(df_list, ignore_index=True)
+
+    # Define the columns to check for non-null values
+    cols_to_check = ['Service Name', 'Product', 'Version', 'Extrainfo']
+
+    # Add a 'RelevantDuplicate' column that counts the number of non-null values in the specified columns for each row
+    df_all['RelevantDuplicate'] = df_all[cols_to_check].notna().sum(axis=1)
+
+    # Sort by 'IP', 'Port', 'State', 'RelevantDuplicate' (in descending order so larger counts come first), then drop duplicates
+    df_all = df_all.sort_values(by=['IP', 'Port', 'State', 'RelevantDuplicate'], ascending=[True, True, False, False])
+    df_all = df_all.drop_duplicates(subset=['IP', 'Port'], keep='first')
+
+    # Convert 'Port' to int for proper sorting
+    df_all['Port'] = df_all['Port'].astype(int)
+
+    # Sort final dataframe by 'IP' and then 'Port'
+    df_all = df_all.sort_values(by=['IP', 'Port'])
+
+    return df_all
