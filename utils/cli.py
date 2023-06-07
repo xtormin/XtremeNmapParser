@@ -19,8 +19,14 @@ parser.add_argument('-o', '--outputformat',
                     help='Output file format [csv, xlsx].',
                     nargs='?',
                     type=str)
+parser.add_argument('-O', '--outputname',
+                    help='Output file name.',
+                    nargs='?',
+                    type=str)
 parser.add_argument('-v', '--verbose',
                     help='Verbose', action="store_true")
+parser.add_argument('-M', '--mergefiles',
+                    help='Merge XML files from directory', action="store_true")
 
 # Script arguments functions
 def get(): return parser.parse_args()
