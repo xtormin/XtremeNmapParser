@@ -19,6 +19,7 @@ args = cli.get()
 merger = args.mergefiles
 output_format_list = args.outputformat
 output_format_list = output_format_list.split(",")
+output_name = args.outputname
 file_xml_to_parse = args.nmapxmlfile
 folder_xml_to_parse = args.nmapxmldir
 
@@ -31,7 +32,7 @@ def export_data(df, file_xml):
 
         if args.mergefiles:
             if args.outputname:
-                outputname = args.outputname
+                outputname = output_name
             else:
                 outputname = "merged_nmap_scan_data"
 
@@ -78,7 +79,7 @@ def run():
     banner.main()
 
     # Show arguments info
-    banner.print_arguments_info(file_xml_to_parse, folder_xml_to_parse, merger, output_format_list)
+    banner.print_arguments_info(file_xml_to_parse, folder_xml_to_parse, merger, output_format_list, output_name)
 
     # Show parsing info
     banner.print_progress_info()

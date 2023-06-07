@@ -24,7 +24,7 @@ def main():
 
     print(colored(BANNER, 'red', attrs=['bold']))
 
-def print_arguments_info(file_xml, folder, merger, output_format_list):
+def print_arguments_info(file_xml, folder, merger, output_format_list, output_name):
 
     BANNER = f"""  
  --------------------------------------------------------------  
@@ -34,6 +34,7 @@ def print_arguments_info(file_xml, folder, merger, output_format_list):
  | Folder (-d)        | {folder}  
  | Merge files (-M)   | {merger}  
  | Output format (-o) | {output_format_list}  
+ | Output name (-O)   | {output_name}  
  --------------------------------------------------------------  
 """
     print(colored(BANNER, 'blue', attrs=['bold']))
