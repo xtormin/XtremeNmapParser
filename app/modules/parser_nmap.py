@@ -12,63 +12,71 @@ config.set_file('config/config.yaml')
 
 HEADERS = config['xlsx']['headers'].get()
 
-def parser(nmapxmlfile):
-    try:
-        tree = ET.parse(nmapxmlfile)
-        root = tree.getroot()
+class NmapXMLtoDF:
+    def __init__(self, xml_file):
+        self.xml_file = xml_file
 
-        output = []
+    def parse_xml(self):
+        tree = ET.parse(self.xml_file)
+        self.root = tree.getroot()
 
-        for host in root.findall('host'):
-            addr = host.find('address').get('addr')
-            state = host.find('status').get('state')
-            ports = host.find('ports')
-            host_name = None
+    def xml_to_df(self):
+        try:
+            self.parse_xml()
+            data = []
 
-            if host.find('hostnames') is not None:
-                for hostname in host.find('hostnames'):
-                    hostname_type = hostname.get('type')
-                    if hostname_type == 'user':
-                        host_name = hostname.get('name')
+            for host in self.root.findall('host'):
+                addr = host.find('address').get('addr')
+                state = host.find('status').get('state')
+                ports = host.find('ports')
+                host_name = None
 
-            if state == 'up':
-                for port in ports:
-                    portid = port.get('portid')
-                    protocol = None
-                    if port.get('protocol') is not None:
-                        protocol = port.get('protocol')
+                if host.find('hostnames') is not None:
+                    for hostname in host.find('hostnames'):
+                        hostname_type = hostname.get('type')
+                        if hostname_type == 'user':
+                            host_name = hostname.get('name')
 
-                    if port.find('state') is not None:
-                        state_port = port.find('state').get('state')
+                if state == 'up':
+                    for port in ports:
+                        portid = port.get('portid')
+                        protocol = None
+                        if port.get('protocol') is not None:
+                            protocol = port.get('protocol')
 
-                    if port.find('service') is not None:
-                        service_name = port.find('service').get('name')
-                        product = port.find('service').get('product')
-                        version = port.find('service').get('version')
-                        extrainfo = port.find('service').get('extrainfo')
+                        if port.find('state') is not None:
+                            state_port = port.find('state').get('state')
 
-                        output.append([host_name,
-                                       addr,
-                                       state,
-                                       portid,
-                                       protocol,
-                                       state_port,
-                                       service_name,
-                                       product,
-                                       version,
-                                       extrainfo])
+                        if port.find('service') is not None:
+                            service_name = port.find('service').get('name')
+                            product = port.find('service').get('product')
+                            version = port.find('service').get('version')
+                            extrainfo = port.find('service').get('extrainfo')
 
-            df = pd.DataFrame(output, columns=HEADERS)
+                            data.append([host_name,
+                                           addr,
+                                           state,
+                                           portid,
+                                           protocol,
+                                           state_port,
+                                           service_name,
+                                           product,
+                                           version,
+                                           extrainfo])
 
-        return df
+                df = pd.DataFrame(data, columns=HEADERS)
 
-    except ET.ParseError as e:
-        logger.error(f" |x| Error |  Error processing the {nmapxmlfile} XML file. It's possible that the scanner did not finish properly and the information is corrupted.")
-        logger.error(e)
+            return df
 
-def parse_file(file_xml):
-    logger.info(f" |+| Parsing | {file_xml}")
-    df = parser(file_xml)
+        except ET.ParseError as e:
+            logger.error(f" |x| Error |  Error processing the XML file. It's possible that the scanner did not finish properly and the information is corrupted.")
+            logger.error(e)
+
+
+def parse_file(xml_file):
+    logger.info(f" |+| Parsing | {xml_file}")
+    nmap_parser = NmapXMLtoDF(xml_file)
+    df = nmap_parser.xml_to_df()
     return df
 
 def merge_xml_files(xml_files):
