@@ -54,39 +54,66 @@ nmap -T4 -Pn -open --script=default,version,vuln -A -p- -oA nmap/tcp-full-script
 Using the tcp-full-scripts.xml file created, execute this tool:
 
 ```
+python3 xnp.py -f <nmap XML file> -o <list with output formats>
 python3 xnp.py -f nmap/tcp-full-scripts.xml -o csv,xlsx
 ```
 
 ![single_scan.png](utils%2Fimages%2Fsingle_scan.png)
 
-### Folder with XML files
+### Folder with multiple XML files
 
-If you have multiple files in 'nmap/' (e.g.: nmap/tcp-full-scripts.xml), run the following command to parse all the .xml files you have in the folder.
+#### Converting XML Files to XLSX/CSV
+
+Each XML file in the specified folder is processed and converted into a DataFrame. 
+
+The following command will produce a CSV/XLSX file for each XML file in the specified folder. The CSV/XLSX will be saved in the same location as the original.
+
+
+To convert all XML files in a folder, you can use the following command:
 
 ```
+python3 xnp.py -d <folder with nmap XML files> -o <list with output formats>
 python3 xnp.py -d nmap/ -o csv,xlsx
 ```
 
 ![multiple_scans.png](utils%2Fimages%2Fmultiple_scans.png)
 
-The csv and/or xlsx will be saved in the same location as the original.
 
-If you want to save all csv's in the same file, you can do the following:
+#### Merging XML files into a Single XLSX/CSV file
 
+Once each XML file has been converted into a DataFrame, all of the DataFrames can be merged into a single DataFrame.
+
+The following command will produce a single XLSX/CSV file that contains the merged data from all of the XML files in the specified folder.
+
+To merge all nmap XML files and generate a file with the result, you can use the following command:
+
+1. Default output name "merged_nmap_scan_data":
 ```
-echo "Hostname;IP;State;Port;Protocol;State Port; Service Name; Product; Version; Extrainfo" > /tmp/all-csv-to-one-file.csv
-cat */nmap/*.csv >> /tmp/all-csv-to-one-file.csv
+python3 xnp.py -d <folder with nmap XML files> -o <list with output formats> -M
+python3 xnp.py -d nmap/ -o csv,xlsx -M
 ```
 
-To convert the information from CSV to XLSX and delete duplicates, you can use this script:
-
+2. Other output name:
 ```
-python3 scripts/csvtoxlsx.py -c /tmp/all-csv-to-one-file.csv
+python3 xnp.py -d <folder with nmap XML files> -o <list with output formats> -M -O <output name>
+python3 xnp.py -d nmap/ -o csv,xlsx -M -O merged_nmap_scan_data
 ```
 
-### Output
+![multiple_scans_merged.png](utils%2Fimages%2Fmultiple_scans_merged.png)
 
-You will get the following columns with scanner information:
+Filtering rules are applied to the DataFrame when merging data from multiple XML files. These rules are necessary to remove duplicates and to keep only the most relevant information. The rules are as follows:
+
+1. A column named 'RelevantDuplicate' is added that counts the number of non-null values in the 'Service Name', 'Product', 'Version', and 'Extrainfo' columns for each row.
+
+2. The DataFrame is sorted by 'IP', 'Port', 'State', and 'RelevantDuplicate' (in descending order so that larger counts come first).
+
+3. Duplicates are dropped based on the 'IP' and 'Port' columns, keeping only the first occurrence of each IP-Port pair.
+
+These filtering rules allow for the reduction of data redundancy and the retention of only the most useful and relevant information.
+
+### Output example
+
+You will get the following information:
 
 ```
 Hostname;IP;State;Port;Protocol;State Port; Service Name; Product; Version; Extrainfo
