@@ -18,16 +18,21 @@ parser.add_argument('-d', '--nmapxmldir',
 parser.add_argument('-o', '--outputformat',
                     help='Output file format [csv, xlsx].',
                     nargs='?',
-                    type=str)
+                    type=str,
+                    default="csv,xlsx,json")
 parser.add_argument('-O', '--outputname',
                     help='Output file name.',
                     nargs='?',
                     type=str)
 parser.add_argument('-v', '--verbose',
-                    help='Verbose', action="store_true")
+                    help='Verbose',
+                    action="store_true")
 parser.add_argument('-M', '--mergefiles',
-                    help='Merge XML files from directory', action="store_true")
+                    help='Merge XML files from directory',
+                    action="store_true")
 
 # Script arguments functions
-def get(): return parser.parse_args()
-def help(): return parser.print_help(sys.stderr)
+def get():
+    return parser.parse_args()
+def help():
+    return parser.print_help(sys.stderr)
