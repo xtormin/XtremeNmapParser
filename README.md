@@ -26,12 +26,11 @@ XML Nmap Parser (XNP) is a Python-based utility designed to parse XML files gene
 
 # Install
 
-The installation information can be found in the '[Install](https://github.com/xtormin/XtremeNmapParser/wiki/WIKI#install)' section of the wiki.
+The installation information can be found in the '[Install](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#install)' section of the wiki.
 
 # Usage
 
-The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/WIKI#usage)' section of the wiki.
-
+The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#usage)' section of the wiki.
 
 # Configuration
 
