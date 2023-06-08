@@ -1,6 +1,6 @@
 import confuse
 import pandas as pd
-import xml.etree.ElementTree as ET
+from lxml import etree
 from app.utils.logs import CustomLogger
 
 # Logging configuration
@@ -17,41 +17,39 @@ class NmapXMLtoDF:
         self.xml_file = xml_file
 
     def parse_xml(self):
-        tree = ET.parse(self.xml_file)
-        self.root = tree.getroot()
+        self.tree = etree.parse(self.xml_file)
+        self.root = self.tree.getroot()
 
     def xml_to_df(self):
         try:
             self.parse_xml()
             data = []
 
-            for host in self.root.findall('host'):
-                addr = host.find('address').get('addr')
-                state = host.find('status').get('state')
+            for host in self.root.iter('host'):
+                addr = host.find('address').attrib['addr']
+                state = host.find('status').attrib['state']
                 ports = host.find('ports')
-                host_name = None
 
-                if host.find('hostnames') is not None:
-                    for hostname in host.find('hostnames'):
-                        hostname_type = hostname.get('type')
-                        if hostname_type == 'user':
-                            host_name = hostname.get('name')
+                hostnames = host.find('hostnames')
+                host_name = None
+                if hostnames is not None:
+                    for hostname in hostnames:
+                        if hostname.attrib.get('type') == 'user':
+                            host_name = hostname.attrib['name']
+                            break
 
                 if state == 'up':
                     for port in ports:
-                        portid = port.get('portid')
-                        protocol = None
-                        if port.get('protocol') is not None:
-                            protocol = port.get('protocol')
+                        portid = port.attrib.get('portid')
+                        protocol = port.attrib.get('protocol')
+                        state_port = port.find('state').attrib.get('state') if port.find('state') is not None else None
 
-                        if port.find('state') is not None:
-                            state_port = port.find('state').get('state')
-
-                        if port.find('service') is not None:
-                            service_name = port.find('service').get('name')
-                            product = port.find('service').get('product')
-                            version = port.find('service').get('version')
-                            extrainfo = port.find('service').get('extrainfo')
+                        service = port.find('service')
+                        if service is not None:
+                            service_name = service.attrib.get('name')
+                            product = service.attrib.get('product')
+                            version = service.attrib.get('version')
+                            extrainfo = service.attrib.get('extrainfo')
 
                             data.append([host_name,
                                            addr,
@@ -68,13 +66,13 @@ class NmapXMLtoDF:
 
             return df
 
-        except ET.ParseError as e:
+        except etree.ParseError as e:
             logger.error(f" |x| Error |  Error processing the XML file. It's possible that the scanner did not finish properly and the information is corrupted.")
             logger.error(e)
 
 
 def parse_file(xml_file):
-    logger.info(f" |+| Parsing | {xml_file}")
+    print(f" *** Parsing | {xml_file}")
     nmap_parser = NmapXMLtoDF(xml_file)
     df = nmap_parser.xml_to_df()
     return df

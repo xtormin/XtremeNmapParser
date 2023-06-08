@@ -18,7 +18,7 @@ NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
 def export_single_xml(file_xml, list_output_format):
     df = nmap.parse_file(file_xml)
     if df is not None:
-        out.write_dataframe(df=df, file_xml=file_xml, output_format_list=list_output_format)
+        out.write_dataframe(df=df, file_xml=file_xml, list_output_format=list_output_format)
 
 def export_multiple_xml(files_xml, list_output_format, file_output_name, merger):
     df = nmap.merge_xml_files(files_xml)

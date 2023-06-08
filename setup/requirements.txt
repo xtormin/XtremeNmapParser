@@ -5,3 +5,4 @@ confuse
 xlsxwriter
 termcolor
 coloredlogs
+lxml
