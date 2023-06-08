@@ -15,13 +15,15 @@ APPNAME = config['appname'].get()
 NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
 
 # Global arguments
-args = cli.get()
-merger = args.mergefiles
-output_format_list = args.outputformat
-output_format_list = output_format_list.split(",")
-output_name = args.outputname
-file_xml_to_parse = args.nmapxmlfile
-folder_xml_to_parse = args.nmapxmldir
+try:
+    args = cli.get()
+    merger = args.mergefiles
+    output_format_list = (args.outputformat).split(",")
+    output_name = args.outputname
+    file_xml_to_parse = args.nmapxmlfile
+    folder_xml_to_parse = args.nmapxmldir
+except AttributeError as AE:
+    logger.error(f"|-| Error | Tried to split a None object.")
 
 def export_data(df, file_xml):
     if df.empty:
