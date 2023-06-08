@@ -15,26 +15,26 @@ def main():
      \(        )/       \(       )/    \(         
       '        '         '       '      '         
                                                
-    By: @xtormin
     Github: https://github.com/xtormin/XtremeNmapParser
-        
-    HAPPY HUNTING! }8·)
+    By: @xtormin
+    
+    HAPPY HACKING! }8·)
    
     """
 
     print(colored(BANNER, 'red', attrs=['bold']))
 
-def print_arguments_info(file_xml, folder, merger, output_format_list, output_name):
+def print_arguments_info(single_xml, folder_multiple_xml, list_output_format, file_output_name, merger):
 
     BANNER = f"""  
  --------------------------------------------------------------  
  | Arguments information  
  --------------------------------------------------------------  
- | File (-f)          | {file_xml}  
- | Folder (-d)        | {folder}  
+ | File (-f)          | {single_xml}  
+ | Folder (-d)        | {folder_multiple_xml}  
  | Merge files (-M)   | {merger}  
- | Output format (-o) | {output_format_list}  
- | Output name (-O)   | {output_name}  
+ | Output format (-o) | {list_output_format}  
+ | Output name (-O)   | {file_output_name}  
  --------------------------------------------------------------  
 """
     print(colored(BANNER, 'blue', attrs=['bold']))

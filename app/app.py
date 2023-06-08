@@ -2,7 +2,7 @@ import confuse
 from app.utils import cli, banner, functions as func
 from app.utils.logs import CustomLogger
 import app.modules.parser_nmap as nmap
-from app.modules import output_format
+from app.modules import output_format as out
 
 # Logging configuration
 logger = CustomLogger('test')
@@ -14,78 +14,69 @@ config.set_file('config/config.yaml')
 APPNAME = config['appname'].get()
 NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
 
-# Global arguments
-try:
-    args = cli.get()
-    merger = args.mergefiles
-    output_format_list = (args.outputformat).split(",")
-    output_name = args.outputname
-    file_xml_to_parse = args.nmapxmlfile
-    folder_xml_to_parse = args.nmapxmldir
-except AttributeError as AE:
-    logger.error(f"|-| Error | Tried to split a None object.")
 
-def export_data(df, file_xml):
-    if df.empty:
-        logger.warning(f" |?| Warning | {file_xml} has no data, omitting export")
-    else:
-        if file_xml:
-            outputname = file_xml.split(NMAP_FILE_EXTENSION)[0]
-
-        if args.mergefiles:
-            if args.outputname:
-                outputname = output_name
-            else:
-                outputname = "merged_nmap_scan_data"
-
-        for output_format_type in output_format_list:
-            output_file_xml = f"{outputname}.{output_format_type}"
-            if output_format_type == "csv":
-                output_format.df_to_csv(df, output_file_xml)
-            elif output_format_type == "xlsx":
-                output_format.df_to_xlsx(df, output_file_xml)
-            elif output_format_type == "json":
-                output_format.df_to_json(df, output_file_xml)
-
-def file_parse_output(file_xml):
+def export_single_xml(file_xml, list_output_format):
     df = nmap.parse_file(file_xml)
     if df is not None:
-        export_data(df, file_xml)
+        out.write_dataframe(df=df, file_xml=file_xml, output_format_list=list_output_format)
 
-def parse_and_export_files(file_xml, folder):
+def export_multiple_xml(files_xml, list_output_format, file_output_name, merger):
+    df = nmap.merge_xml_files(files_xml)
+    if df is not None:
+        out.write_dataframe(df=df, list_output_format=list_output_format, file_output_name=file_output_name, merger=merger)
+
+def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_output_name, merger):
     ## Nmap XLM file
-    if file_xml:
-        file_parse_output(file_xml)
+    if single_xml:
+        export_single_xml(single_xml, list_output_format)
 
     ## Directory with multiple nmap XML files
-    if folder:
+    if folder_multiple_xml:
         try:
-            folder_files = func.get_dir_files(folder)
-            files_xml = [folder + i for i in folder_files if i.endswith(NMAP_FILE_EXTENSION)]
+            folder_files = func.get_dir_files(folder_multiple_xml)
+            files_xml = [folder_multiple_xml + i for i in folder_files if i.endswith(NMAP_FILE_EXTENSION)]
 
             if merger:
-                df = nmap.merge_xml_files(files_xml)
-                export_data(df, file_xml)
-
+                export_multiple_xml(files_xml, list_output_format, file_output_name, merger)
             else:
                 for file_xml in files_xml:
-                    file_parse_output(file_xml)
+                    export_single_xml(file_xml, list_output_format)
                     print("\n")
         except FileNotFoundError:
-            logger.error(f"|-| File {folder} not found")
+            logger.error(f" |-| File {folder_multiple_xml} not found")
         except NotADirectoryError:
-            logger.error(f"|-| Are you sure that {folder} is a directory?")
+            logger.error(f" |-| Are you sure that {folder_multiple_xml} is a directory?")
 
 def run():
+
+    # Arguments
+    try:
+        args = cli.get()
+        single_xml = args.nmapxmlfile
+        folder_multiple_xml = args.nmapxmldir
+        list_output_format = (args.outputformat).split(",")
+        file_output_name = args.outputname
+        merger = args.mergefiles
+
+    except AttributeError as AE:
+        logger.error(f" |-| Error | Tried to split a None object.")
 
     banner.main()
 
     # Show arguments info
-    banner.print_arguments_info(file_xml_to_parse, folder_xml_to_parse, merger, output_format_list, output_name)
+    banner.print_arguments_info(single_xml=single_xml,
+                                folder_multiple_xml=folder_multiple_xml,
+                                list_output_format=list_output_format,
+                                file_output_name=file_output_name,
+                                merger=merger)
 
     # Show parsing info
     banner.print_progress_info()
-    parse_and_export_files(file_xml_to_parse, folder_xml_to_parse)
+    parse_xml_files(single_xml=single_xml,
+                    folder_multiple_xml=folder_multiple_xml,
+                    list_output_format=list_output_format,
+                    file_output_name=file_output_name,
+                    merger=merger)
 
     print("\n")
 
