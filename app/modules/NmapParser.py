@@ -1,4 +1,5 @@
 import confuse
+import ipaddress
 import pandas as pd
 from lxml import etree
 from app.utils.logs import CustomLogger
@@ -67,7 +68,6 @@ class NmapParser:
         df = nmap_parser.get_simple_df()
         return df
 
-
     def parse_file_multiple(xml_file_list):
         # Initialize a list to store the dataframes
         df_list = []
@@ -83,6 +83,13 @@ class NmapParser:
         df = pd.concat(df_list, ignore_index=True)
 
         return df
+
+    def is_not_ip(val):
+        try:
+            ipaddress.ip_address(val)
+            return None
+        except ValueError:
+            return val
 
     def merge_df(xml_file_list):
 
@@ -103,5 +110,9 @@ class NmapParser:
 
         # Sort final dataframe by 'IP' and then 'Port'
         df = df.sort_values(by=['IP', 'Port'])
+
+        df['Hostname'] = df.groupby('IP')['Hostname'].transform(
+            lambda x: x.fillna(method='ffill').fillna(method='bfill'))
+        df['Hostname'] = df['Hostname'].apply(NmapParser.is_not_ip)
 
         return df
