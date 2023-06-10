@@ -47,3 +47,12 @@ def print_progress_info():
  --------------------------------------------------------------
 """
     print(colored(BANNER, 'blue', attrs=['bold']))
+
+def print_output_files_info():
+
+    BANNER = """
+ --------------------------------------------------------------
+ | Output files
+ --------------------------------------------------------------
+"""
+    print(colored(BANNER, 'blue', attrs=['bold']))
