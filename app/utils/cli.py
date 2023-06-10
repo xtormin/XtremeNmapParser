@@ -27,8 +27,11 @@ parser.add_argument('-O', '--outputname',
 parser.add_argument('-v', '--verbose',
                     help='Verbose',
                     action="store_true")
-parser.add_argument('-M', '--mergefiles',
+parser.add_argument('-M', '--merger',
                     help='Merge XML files from directory',
+                    action="store_true")
+parser.add_argument('-R', '--recursive',
+                    help='Parse XML files from a directory recursively',
                     action="store_true")
 
 # Script arguments functions
