@@ -11,6 +11,8 @@ XML Nmap Parser (XNP) is a Python-based utility designed to parse XML files gene
 * [License](#license)
 <!-- TOC -->
 
+![excel_example.png](resources%2Fimages%2Fexcel_example.png)
+
 ## Features
 - Parse Nmap XML files.
 - Export parsed data to CSV or XLSX formats.
