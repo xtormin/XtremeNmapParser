@@ -33,6 +33,13 @@ parser.add_argument('-M', '--merger',
 parser.add_argument('-R', '--recursive',
                     help='Parse XML files from a directory recursively',
                     action="store_true")
+parser.add_argument('-C', '--columns',
+                    type=str,
+                    nargs='+',
+                    help='List of columns for the output dataframe')
+parser.add_argument('--open',
+                    help='Export only the ports with "open" value in "State Port"',
+                    action="store_true")
 
 # Script arguments functions
 def get():
