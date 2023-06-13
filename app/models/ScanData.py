@@ -1,39 +1,27 @@
+import confuse
 import pandas as pd
 
-class ScanData:
-    def __init__(self, hostname=None,
-                       addr=None,
-                       host_state=None,
-                       portid=None,
-                       protocol=None,
-                       port_state=None,
-                       service_name=None,
-                       service_product=None,
-                       service_version=None,
-                       service_extrainfo=None):
+# LOAD CONFIG FROM YAML FILE
+config = confuse.Configuration('XNP', __name__)
+config.set_file('config/config.yaml')
 
-        self.hostname = hostname
-        self.addr = addr
-        self.host_state = host_state
-        self.portid = portid
-        self.protocol = protocol
-        self.port_state = port_state
-        self.service_name = service_name
-        self.service_product = service_product
-        self.service_version = service_version
-        self.service_extrainfo = service_extrainfo
+HEADERS_ALL = config['xlsx']['headers_all'].get()
+
+class ScanData:
+    def __init__(self):
+        self.data = {header: None for header in HEADERS_ALL}
 
     def to_list(self):
-        return [self.hostname,
-                self.addr,
-                self.host_state,
-                self.portid,
-                self.protocol,
-                self.port_state,
-                self.service_name,
-                self.service_product,
-                self.service_version,
-                self.service_extrainfo]
+        return list(self.data.values())
 
-    def to_dataframe(self, headers, scandata_list):
-        return pd.DataFrame(scandata_list, columns=headers)
+    def to_dict(self):
+        return self.data
+
+    def to_dataframe(scan_data_list):
+        df = None
+        # Covert object list ScanData to a list of lists
+        data_list = [sd.to_list() for sd in scan_data_list]
+        # Use list of lists to create a DataFrame
+        if data_list:
+            df = pd.DataFrame(data_list, columns=list(scan_data_list[0].data.keys()))
+            return df
