@@ -26,9 +26,6 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
     ## Directory with multiple nmap XML files
     if folder_multiple_xml:
         try:
-            # Check directory format
-            if not folder_multiple_xml.endswith("/"):
-                folder_multiple_xml = f"{folder_multiple_xml}/"
 
             # Get XML file list to parse
             ## Recursive
@@ -70,7 +67,8 @@ def run():
     try:
         args = cli.get()
         single_xml = args.nmapxmlfile
-        folder_multiple_xml = args.nmapxmldir
+        folder_multiple_xml = func.add_slash_if_needed(args.nmapxmldir)
+        logger.info(folder_multiple_xml)
         list_output_format = (args.outputformat).split(",")
         file_output_name = args.outputname
         merger = args.merger

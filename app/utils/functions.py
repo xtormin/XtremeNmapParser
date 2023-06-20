@@ -18,3 +18,11 @@ def get_dir_files_recursive(folder):
             if file.endswith(NMAP_FILE_EXTENSION):
                 xml_files.append(os.path.join(root, file))
     return xml_files
+
+def add_slash_if_needed(directory):
+    if os.name == 'posix':  # Linux/Mac
+        return directory if directory.endswith('/') else directory + '/'
+    elif os.name == 'nt':  # Windows
+        return directory if directory.endswith('\\') else directory + '\\'
+    else:
+        raise Exception(f'Unsupported OS: {os.name}')
