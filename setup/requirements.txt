@@ -6,3 +6,4 @@ xlsxwriter
 termcolor
 coloredlogs
 lxml
+requests
