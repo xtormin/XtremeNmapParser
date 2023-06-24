@@ -16,7 +16,7 @@ parser.add_argument('-d', '--nmapxmldir',
                     nargs='?',
                     type=str)
 parser.add_argument('-o', '--outputformat',
-                    help='Output file format [csv, xlsx].',
+                    help='Output file format [csv, xlsx, json].',
                     nargs='?',
                     type=str,
                     default="csv,xlsx,json")
