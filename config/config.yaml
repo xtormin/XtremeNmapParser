@@ -1,6 +1,6 @@
 app:
   name: "Xtreme Nmap Parser"
-  version: "1.0.4"
+  version: "1.0.5"
 
 nmap_file_extension: ".xml"
 
