@@ -8,18 +8,19 @@ parser = argparse.ArgumentParser(
     description='%(prog)s parse the output information from an nmap XML file')
 
 parser.add_argument('-f', '--file',
-                    help='Nmap XML file',
+                    help='Nmap XML file. Ej: xnp.py -f nmapfile.xml',
                     nargs='?',
                     type=str)
 parser.add_argument('-d', '--directory',
-                    help='Directory with nmap XML files',
+                    help='Directory with nmap XML files. Ej: xnp.py -d nmap/',
                     nargs='?',
                     type=str)
 parser.add_argument('-oF', '--outputformat',
-                    help='Output file format [csv, xlsx, json].',
-                    nargs='?',
+                    choices=['csv', 'xlsx', 'json'],
+                    help='Output file format (csv, xlsx, json). Ej: xnp.py -f nmapfile.xml -oF csv xlsx',
+                    nargs='+',
                     type=str,
-                    default="csv,xlsx,json")
+                    default=['csv', 'xlsx', 'json'])
 parser.add_argument('-oN', '--outputname',
                     help='Output file name.',
                     nargs='?',
@@ -35,8 +36,8 @@ parser.add_argument('-R', '--recursive',
                     action="store_true")
 parser.add_argument('-C', '--columns',
                     type=str,
-                    nargs='+',
-                    help='List of columns for the output dataframe')
+                    choices=['default', 'all'],
+                    help='Columns for the output dataframe')
 parser.add_argument('--open',
                     help='Export only the ports with "open" value in "State Port"',
                     action="store_true")

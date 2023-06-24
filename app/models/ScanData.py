@@ -5,7 +5,7 @@ import pandas as pd
 config = confuse.Configuration('XNP', __name__)
 config.set_file('config/config.yaml')
 
-HEADERS_ALL = config['xlsx']['headers_all'].get()
+HEADERS_ALL = config['xlsx']['columns']['all'].get()
 
 class ScanData:
     def __init__(self):

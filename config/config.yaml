@@ -1,14 +1,20 @@
-appname: "Xtreme Nmap Parser"
-version: "1.0.4"
+app:
+  name: "Xtreme Nmap Parser"
+  version: "1.0.4"
 
 nmap_file_extension: ".xml"
 
 xlsx:
-  sheet_name: "Nmap Scan Results"
-  headers_color: "#9D2911"
-  headers_text_color: "#FFFFFF"
-  table_style: "Table Style Medium 16"
-  headers_default: [ 'Hostname',
+  sheet:
+    name: "Nmap Scan Results"
+  table:
+    style: "Table Style Medium 16"
+  header:
+    color: "#9D2911"
+    text:
+      color: "#FFFFFF"
+  columns:
+    default: [ 'Hostname',
               'IP',
               'State',
               'Port',
@@ -18,7 +24,7 @@ xlsx:
               'Product',
               'Version',
               'Extrainfo']
-  headers_all: [ 'Hostname',
+    all: [ 'Hostname',
               'IP',
               'State',
               'Port',

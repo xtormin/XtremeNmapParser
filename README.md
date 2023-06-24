@@ -37,10 +37,10 @@ The installation information can be found in the '[Install](https://github.com/x
 
 The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#usage)' section of the wiki.
 
-Example:
+Best example:
 
 ```
-python3 xnp.py -d nmap/ -M -R --open
+python3 xnp.py -d nmap/ -M -R --open -C all
 ```
 
 # 🛠️ Configuration

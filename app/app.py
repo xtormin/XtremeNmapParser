@@ -12,17 +12,22 @@ logger = CustomLogger('test')
 config = confuse.Configuration('XNP', __name__)
 config.set_file('config/config.yaml')
 
-APPNAME = config['appname'].get()
+APPNAME = config['app']['name'].get()
 NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
-HEADERS_DEFAULT = config['xlsx']['headers_default'].get()
+HEADERS_DEFAULT = config['xlsx']['columns']['default'].get()
+HEADERS_ALL = config['xlsx']['columns']['all'].get()
 
 def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_output_name, merger, recursive, df_columns, only_open_ports):
     ## Nmap XLM file
     if single_xml:
         # Create dataframe with nmap data
         df = NmapParser(single_xml).parse_file()
-        df = out.df_output_filters(df, df_columns, only_open_ports)
-        out.export_single_xml(df, single_xml, list_output_format)
+        if df is not None:
+            df = out.df_output_filters(df, df_columns, only_open_ports)
+            banner.print_output_files_info()
+            out.export_single_xml(df, single_xml, list_output_format)
+        else:
+            logger.warning(f" |?| Warning | The file has no scan data, omitting export")
 
     ## Directory with multiple nmap XML files
     if folder_multiple_xml:
@@ -46,15 +51,21 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
             if merger:
                 # Create dataframe with nmap data merged
                 df = NmapParser.merge_df(xml_files)
-                banner.print_output_files_info()
-                df = out.df_output_filters(df, df_columns, only_open_ports)
-                out.export_multiple_xml(df, list_output_format, file_output_name, merger)
+                if df is not None:
+                    banner.print_output_files_info()
+                    df = out.df_output_filters(df, df_columns, only_open_ports)
+                    out.export_multiple_xml(df, list_output_format, file_output_name, merger)
+                else:
+                    logger.warning(f" |?| Warning | The file has no scan data, omitting export")
             else:
                 for xml_file in xml_files:
                     # Create dataframe with nmap data
                     df = NmapParser(xml_file).parse_file()
-                    df = out.df_output_filters(df, df_columns, only_open_ports)
-                    out.export_single_xml(df, xml_file, list_output_format)
+                    if df is not None:
+                        df = out.df_output_filters(df, df_columns, only_open_ports)
+                        out.export_single_xml(df, xml_file, list_output_format)
+                    else:
+                        logger.warning(f" |?| Warning | The file has no scan data, omitting export")
                     print("\n")
 
         except FileNotFoundError:
@@ -69,12 +80,19 @@ def run():
         args = cli.get()
         single_xml = args.file
         folder_multiple_xml = func.add_slash_if_needed(args.directory) if args.directory else None
-        list_output_format = (args.outputformat).split(",")
+        list_output_format = args.outputformat
         file_output_name = args.outputname
         merger = args.merger
         recursive = args.recursive
         only_open_ports = args.open
-        df_columns = args.columns if args.columns else HEADERS_DEFAULT
+
+        column_options = {
+            "default": HEADERS_DEFAULT,
+            "all": HEADERS_ALL,
+            None: HEADERS_DEFAULT
+        }
+
+        df_columns = column_options.get(args.columns, HEADERS_DEFAULT)
 
     except AttributeError as AE:
         logger.error(AE)
