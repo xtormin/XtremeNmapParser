@@ -49,6 +49,8 @@ You can change the output formats and other settings through the [config.yaml](c
 
 # 💬 Change Log
 - **24/06/2023** - XNP v1.0.3
+  - Refactor "outputformat" and "outputname" arguments.
+- **24/06/2023** - XNP v1.0.3
   - Added a module for automatic version checking and updating. XtremeNmapParser will now check if it's running the latest version at startup and update itself if a new version is available.
 - **13/06/2023** - XNP v1.0.2
   - Added custom headers.
