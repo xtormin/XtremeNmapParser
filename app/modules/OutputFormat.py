@@ -128,9 +128,14 @@ def df_output_filters(df, df_columns, only_open_ports):
         df = df.loc[df['State Port'] == 'open']
 
     # Convert 'Port' to int for proper sorting
-    df[df.columns[df.columns.get_loc('Port')]] = df['Port'].astype(int)
+    # Create a DataFrame copy
+    df_copy = df.copy()
+
+    # Modify DF copy
+    column_index = df_copy.columns.get_loc('Port')
+    df_copy['Port'] = df_copy['Port'].astype(int)
 
     # Sort final dataframe by 'IP' and then 'Port'
-    df = df.sort_values(by=['IP', 'Port'])
+    df = df_copy.sort_values(by=['IP', 'Port'])
 
     return df
