@@ -37,6 +37,12 @@ The installation information can be found in the '[Install](https://github.com/x
 
 The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#usage)' section of the wiki.
 
+Example:
+
+```
+python3 xnp.py -d nmap/ -M -R --open
+```
+
 # 🛠️ Configuration
 
 You can change the output formats and other settings through the [config.yaml](config%2Fconfig.yaml)  file.
