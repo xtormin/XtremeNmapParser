@@ -5,7 +5,7 @@ import confuse
 config = confuse.Configuration('XNP', __name__)
 config.set_file('config/config.yaml')
 
-APPNAME = config['appname'].get()
+APPNAME = config['app']['name'].get()
 NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
 
 def get_dir_files(dir):

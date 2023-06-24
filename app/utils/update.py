@@ -10,7 +10,7 @@ logger = CustomLogger('test')
 config = confuse.Configuration('XNP', __name__)
 config.set_file('config/config.yaml')
 
-APPVER = config['version'].get()
+APPVER = config['app']['version'].get()
 
 # Define the URL of the GitHub repository
 REPO_URL = "https://api.github.com/repos/xtormin/XtremeNmapParser/releases/latest"

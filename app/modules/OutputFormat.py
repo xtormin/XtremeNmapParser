@@ -10,10 +10,10 @@ config = confuse.Configuration('XNP', __name__)
 config.set_file('config/config.yaml')
 
 NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
-SHEET_NAME = config['xlsx']['sheet_name'].get()
-HEADERS_COLOR = config['xlsx']['headers_color'].get()
-HEADERS_TEXT_COLOR = config['xlsx']['headers_text_color'].get()
-TABLE_STYLE = config['xlsx']['table_style'].get()
+SHEET_NAME = config['xlsx']['sheet']['name'].get()
+HEADERS_COLOR = config['xlsx']['header']['color'].get()
+HEADERS_TEXT_COLOR = config['xlsx']['header']['text']['color'].get()
+TABLE_STYLE = config['xlsx']['table']['style'].get()
 
 def adjust_columns(worksheet, df):
     for i, col in enumerate(df.columns):
@@ -107,17 +107,10 @@ def write_dataframe(df, list_output_format, file_output_name=None, merger=None, 
                 df_to_json(df, output_file_xml)
 
 def export_single_xml(df, xml_file, list_output_format):
-    if df is not None:
-        write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format)
-    else:
-        logger.warning(f" |?| Warning | The file has no scan data, omitting export")
+    write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format)
 
 def export_multiple_xml(df, list_output_format, file_output_name, merger):
-    if df is not None:
-        write_dataframe(df=df, list_output_format=list_output_format, file_output_name=file_output_name, merger=merger)
-    else:
-        logger.warning(f" |?| Warning | The file has no scan data, omitting export")
-
+    write_dataframe(df=df, list_output_format=list_output_format, file_output_name=file_output_name, merger=merger)
 
 def df_output_filters(df, df_columns, only_open_ports):
     # Columns to export
