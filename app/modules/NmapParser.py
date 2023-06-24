@@ -9,12 +9,6 @@ from app.models.ScanData import ScanData
 # Logging configuration
 logger = CustomLogger('test')
 
-# LOAD CONFIG FROM YAML FILE
-config = confuse.Configuration('XNP', __name__)
-config.set_file('config/config.yaml')
-
-HEADERS_ALL = config['xlsx']['headers_all'].get()
-
 class NmapParser:
     def __init__(self, xml_file=None):
         self.xml_file = xml_file
