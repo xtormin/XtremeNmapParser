@@ -1,6 +1,13 @@
+import confuse
 from termcolor import colored
+
+# LOAD CONFIG FROM YAML FILE
+config = confuse.Configuration('XNP', __name__)
+config.set_file('config/config.yaml')
+
+APPVER = config['version'].get()
 def main():
-    BANNER = """
+    BANNER = f"""
                                                 
                     _____   ______        _____   
    _____      _____|\    \ |\     \   ___|\    \  
@@ -16,9 +23,10 @@ def main():
       '        '         '       '      '         
                                                
     Github: https://github.com/xtormin/XtremeNmapParser
+    Version: {APPVER}
     By: @xtormin
     
-    HAPPY HACKING! }8·)
+    HAPPY HACKING! 8·)
    
     """
 
