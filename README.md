@@ -14,7 +14,7 @@ Xtreme Nmap Parser (XNP) is a Python-based utility designed to parse XML files g
 
 ![xnp_scheme.png](resources%2Fimages%2Fxnp_scheme.png)
 
-![excel_example.png](resources%2Fimages%2Fexcel_example.png)
+![excel_example.png](resources%2Fimages%2Fexcel_example_1.png)
 
 ## ⭐ Features
 - Parse Nmap XML files.
