@@ -48,6 +48,8 @@ python3 xnp.py -d nmap/ -M -R --open -C all
 You can change the output formats and other settings through the [config.yaml](config%2Fconfig.yaml)  file.
 
 # 💬 Change Log
+- **24/06/2023** - XNP v1.0.5
+  - Updated column argument format. It now accepts "default" and "all" options. Using "default" will select a predefined set of columns, while "all" will select all available columns. The columns for each case are defined in "config.yaml".
 - **24/06/2023** - XNP v1.0.4
   - Refactor "outputformat" and "outputname" arguments.
 - **24/06/2023** - XNP v1.0.3
