@@ -48,7 +48,7 @@ python3 xnp.py -d nmap/ -M -R --open
 You can change the output formats and other settings through the [config.yaml](config%2Fconfig.yaml)  file.
 
 # 💬 Change Log
-- **24/06/2023** - XNP v1.0.3
+- **24/06/2023** - XNP v1.0.4
   - Refactor "outputformat" and "outputname" arguments.
 - **24/06/2023** - XNP v1.0.3
   - Added a module for automatic version checking and updating. XtremeNmapParser will now check if it's running the latest version at startup and update itself if a new version is available.
