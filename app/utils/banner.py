@@ -34,8 +34,8 @@ def print_arguments_info(single_xml, folder_multiple_xml, list_output_format, fi
  | Folder (-d)         | {folder_multiple_xml}  
  | Merge files (-M)    | {merger}  
  | Recursive (-R)      | {recursive}  
- | Output format (-o)  | {list_output_format}  
- | Output name (-O)    | {file_output_name}
+ | Output format (-oF)  | {list_output_format}  
+ | Output name (-oN)    | {file_output_name}
  | Columns (-C)        | {df_columns}
  | Open ports (--open) | {only_open_ports}
  --------------------------------------------------------------  

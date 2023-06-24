@@ -67,8 +67,8 @@ def run():
     # Arguments
     try:
         args = cli.get()
-        single_xml = args.nmapxmlfile
-        folder_multiple_xml = func.add_slash_if_needed(args.nmapxmldir) if args.nmapxmldir else None
+        single_xml = args.file
+        folder_multiple_xml = func.add_slash_if_needed(args.directory) if args.directory else None
         list_output_format = (args.outputformat).split(",")
         file_output_name = args.outputname
         merger = args.merger

@@ -7,20 +7,20 @@ parser = argparse.ArgumentParser(
     add_help=True,
     description='%(prog)s parse the output information from an nmap XML file')
 
-parser.add_argument('-f', '--nmapxmlfile',
+parser.add_argument('-f', '--file',
                     help='Nmap XML file',
                     nargs='?',
                     type=str)
-parser.add_argument('-d', '--nmapxmldir',
+parser.add_argument('-d', '--directory',
                     help='Directory with nmap XML files',
                     nargs='?',
                     type=str)
-parser.add_argument('-o', '--outputformat',
+parser.add_argument('-oF', '--outputformat',
                     help='Output file format [csv, xlsx, json].',
                     nargs='?',
                     type=str,
                     default="csv,xlsx,json")
-parser.add_argument('-O', '--outputname',
+parser.add_argument('-oN', '--outputname',
                     help='Output file name.',
                     nargs='?',
                     type=str)
