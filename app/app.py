@@ -1,6 +1,7 @@
 import confuse
 from app.utils import cli, banner, functions as func
 from app.utils.logs import CustomLogger
+from app.utils import update
 from app.modules.NmapParser import *
 from app.modules import OutputFormat as out
 
@@ -67,23 +68,22 @@ def run():
     try:
         args = cli.get()
         single_xml = args.nmapxmlfile
-        folder_multiple_xml = func.add_slash_if_needed(args.nmapxmldir)
-        logger.info(folder_multiple_xml)
+        folder_multiple_xml = func.add_slash_if_needed(args.nmapxmldir) if args.nmapxmldir else None
         list_output_format = (args.outputformat).split(",")
         file_output_name = args.outputname
         merger = args.merger
         recursive = args.recursive
         only_open_ports = args.open
-
-        if args.columns:
-            df_columns = args.columns
-        else:
-            df_columns = HEADERS_DEFAULT
+        df_columns = args.columns if args.columns else HEADERS_DEFAULT
 
     except AttributeError as AE:
         logger.error(AE)
 
+    # Banner
     banner.main()
+
+    # Update tool
+    update.update_program()
 
     # Show arguments info
     banner.print_arguments_info(single_xml=single_xml,
