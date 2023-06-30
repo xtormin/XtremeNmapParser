@@ -25,7 +25,7 @@ def main():
     Version: {APPVER}
     By: @xtormin
     
-    HAPPY HACKING! 8·)
+    HAPPY HACKING! 8)
     """
 
     print(colored(BANNER, 'red', attrs=['bold']))
