@@ -69,7 +69,6 @@ You can change the output formats and other settings through the [config.yaml](c
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for more information.
 
-
 # 🎉 Let's Get Social!
 
 * **Website:** [https://xtormin.com](https://xtormin.com)
