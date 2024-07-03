@@ -38,7 +38,7 @@ The installation information can be found in the '[Install](https://github.com/x
 
 The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#usage)' section of the wiki.
 
-Best example:
+My favorite example:
 
 ```
 python3 xnp.py -d nmap/ -M -R --open -C all
@@ -64,6 +64,10 @@ You can change the output formats and other settings through the [config.yaml](c
   - Introduced NmapXMLReport.py class for XML data parsing.
   - Added recursive option.
 - **05/06/2023** - XNP v1.0.0 - Official release.
+
+# TO DO
+- [ ] Output file with xml not parsed.
+- 
 
 # 📜 License
 

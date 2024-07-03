@@ -24,7 +24,8 @@ class NmapParser:
                         for host_name in hostname.hostnames:
                             dataframe.data["Hostname"] = host_name.name
                     for address in host.addresses:
-                        dataframe.data["IP"] = address.addr
+                        if address.addrtype == 'ipv4':
+                            dataframe.data["IP"] = address.addr
                     for status in host.status:
                         dataframe.data["State"] = status.state
                     dataframe.data["Port"] = port.portid
