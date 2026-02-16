@@ -103,7 +103,8 @@ class NmapParser:
         df = df.drop_duplicates(subset=['IP', 'Port'], keep='first')
 
         df['Hostname'] = df.groupby('IP')['Hostname'].transform(
-            lambda x: x.fillna(method='ffill').fillna(method='bfill'))
+            #lambda x: x.fillna(method='ffill').fillna(method='bfill'))
+            lambda x: x.ffill().bfill())
         df['Hostname'] = df['Hostname'].apply(NmapParser.is_not_ip)
 
         return df
