@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV --script=default -oX with_scripts.xml 10.0.0.6" start="1687600500" startstr="Sat Jun 24 12:08:20 2023" version="7.93" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1" services="443"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host>
+<status state="up" reason="echo-reply" reason_ttl="64"/>
+<address addr="10.0.0.6" addrtype="ipv4"/>
+<hostnames><hostname name="tls.lab.local" type="PTR"/></hostnames>
+<ports>
+<port protocol="tcp" portid="443">
+<state state="open" reason="syn-ack" reason_ttl="64"/>
+<service name="https" product="nginx" version="1.24.0" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.24.0</cpe></service>
+<script id="http-title" output="Welcome"/>
+<script id="ssl-cert" output="Subject: commonName=tls.lab.local"><table key="subject"><elem key="commonName">tls.lab.local</elem></table></script>
+</port>
+</ports>
+</host>
+<runstats><finished time="1687600510" timestr="Sat Jun 24 12:08:30 2023" elapsed="10.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="masscan" args="masscan -oX masscan.xml 10.0.0.8" start="1687600600" startstr="Sat Jun 24 12:10:00 2023" version="1.3.2" xmloutputversion="1.03">
+<scaninfo type="syn" protocol="tcp" numservices="1" services="8080"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host endtime="1687600600">
+<status state="up" reason="syn-ack" reason_ttl="64"/>
+<address addr="10.0.0.8" addrtype="ipv4"/>
+<ports><port protocol="tcp" portid="8080"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http-proxy" method="table" conf="3"/></port></ports>
+</host>
+<runstats><finished time="1687600600" timestr="Sat Jun 24 12:10:00 2023" elapsed="1.00" summary="masscan done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

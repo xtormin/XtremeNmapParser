@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV -oX no_hosts.xml 10.0.0.99" start="1687600400" startstr="Sat Jun 24 12:06:40 2023" version="7.93" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1" services="80"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<runstats><finished time="1687600410" timestr="Sat Jun 24 12:06:50 2023" elapsed="10.00" summary="Nmap done" exit="success"/><hosts up="0" down="0" total="0"/></runstats>
+</nmaprun>

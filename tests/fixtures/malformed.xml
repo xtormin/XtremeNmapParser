@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap" version="7.93" xmloutputversion="1.05">
+<verbose level="0"/>
+<debugging level="0"/>
+<host>
+<status state="up" reason="echo-reply" reason_ttl="64"/>
+<address addr="10.0.0.7" addrtype="ipv4"/>
+<ports><port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_

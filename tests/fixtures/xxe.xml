@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun [
+  <!ENTITY xxe SYSTEM "xxe_secret.txt">
+]>
+<nmaprun scanner="nmap" args="nmap -sV -oX xxe.xml 10.0.0.9" start="1687600700" startstr="Sat Jun 24 12:11:40 2023" version="7.93" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1" services="80"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host>
+<status state="up" reason="echo-reply" reason_ttl="64"/>
+<address addr="10.0.0.9" addrtype="ipv4"/>
+<hostnames><hostname name="xxe.lab.local" type="PTR"/></hostnames>
+<ports><port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" method="table" conf="3"><cpe>&xxe;</cpe></service></port></ports>
+</host>
+<runstats><finished time="1687600710" timestr="Sat Jun 24 12:11:50 2023" elapsed="10.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

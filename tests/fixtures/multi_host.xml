@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV -oX multi_host.xml 10.0.0.0/29" start="1687600100" startstr="Sat Jun 24 12:01:40 2023" version="7.93" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="2" services="22,443"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host>
+<status state="up" reason="echo-reply" reason_ttl="64"/>
+<address addr="10.0.0.20" addrtype="ipv4"/>
+<hostnames><hostname name="db.lab.local" type="PTR"/></hostnames>
+<ports><port protocol="tcp" portid="5432"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="postgresql" product="PostgreSQL DB" version="14.8" method="probed" conf="10"/></port></ports>
+</host>
+<host>
+<status state="up" reason="echo-reply" reason_ttl="64"/>
+<address addr="10.0.0.3" addrtype="ipv4"/>
+<hostnames/>
+<ports>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="https" method="table" conf="3"/></port>
+<port protocol="udp" portid="53"><state state="open" reason="udp-response" reason_ttl="64"/><service name="domain" product="ISC BIND" version="9.18" method="probed" conf="10"/></port>
+</ports>
+</host>
+<runstats><finished time="1687600110" timestr="Sat Jun 24 12:01:50 2023" elapsed="10.00" summary="Nmap done" exit="success"/><hosts up="2" down="0" total="2"/></runstats>
+</nmaprun>

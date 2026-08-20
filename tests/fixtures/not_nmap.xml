@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report>
+  <finding severity="high"><host>10.0.0.1</host><port>80</port></finding>
+</report>

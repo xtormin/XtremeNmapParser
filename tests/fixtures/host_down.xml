@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sn -oX host_down.xml 10.0.0.4-5" start="1687600300" startstr="Sat Jun 24 12:05:00 2023" version="7.93" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1" services="80"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host>
+<status state="down" reason="no-response" reason_ttl="0"/>
+<address addr="10.0.0.4" addrtype="ipv4"/>
+</host>
+<host>
+<status state="up" reason="echo-reply" reason_ttl="64"/>
+<address addr="10.0.0.5" addrtype="ipv4"/>
+<hostnames><hostname name="filtered.lab.local" type="PTR"/></hostnames>
+<ports><extraports state="filtered" count="1000"><extrareasons reason="no-responses" count="1000"/></extraports></ports>
+</host>
+<runstats><finished time="1687600310" timestr="Sat Jun 24 12:05:10 2023" elapsed="10.00" summary="Nmap done" exit="success"/><hosts up="1" down="1" total="2"/></runstats>
+</nmaprun>
