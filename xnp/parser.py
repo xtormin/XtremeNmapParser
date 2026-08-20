@@ -1,6 +1,8 @@
 """Turn nmap XML reports into pandas DataFrames."""
 
 import ipaddress
+from collections.abc import Iterator
+from typing import Optional
 
 import pandas as pd
 from lxml import etree
@@ -20,7 +22,8 @@ RELEVANCE_HELPER_COLUMN = 'RelevantDuplicate'
 class NmapParser:
     """Parse one nmap XML report into a DataFrame."""
 
-    def __init__(self, xml_file=None, validate=True, include_hostless=False):
+    def __init__(self, xml_file: Optional[str] = None, validate: bool = True,
+                 include_hostless: bool = False) -> None:
         self.xml_file = xml_file
         self.validate = validate
         self.include_hostless = include_hostless
@@ -28,7 +31,7 @@ class NmapParser:
     # --- Per-host extraction ------------------------------------------------
 
     @staticmethod
-    def _host_address(host):
+    def _host_address(host) -> Optional[str]:
         """Return the host address, preferring IPv4 but falling back to IPv6.
 
         Reading only ``addrtype == 'ipv4'`` used to leave every IPv6 host
@@ -38,7 +41,7 @@ class NmapParser:
         return addresses.get('ipv4') or addresses.get('ipv6')
 
     @staticmethod
-    def _host_name(host):
+    def _host_name(host) -> Optional[str]:
         name = None
         for hostnames in host.hostnames:
             for hostname in hostnames.hostnames:
@@ -46,24 +49,24 @@ class NmapParser:
         return name
 
     @staticmethod
-    def _host_state(host):
+    def _host_state(host) -> Optional[str]:
         return host.status[0].state if host.status else None
 
     @staticmethod
-    def _scripts(port):
+    def _scripts(port) -> Optional[str]:
         """Render a port's scripts as readable ``id: output`` lines."""
         return "\n".join(
             f"{script.id}: {script.output}" for script in port.script
         ) or None
 
-    def _row(self, host):
+    def _row(self, host) -> ScanData:
         row = ScanData()
         row.data["Hostname"] = self._host_name(host)
         row.data["IP"] = self._host_address(host)
         row.data["State"] = self._host_state(host)
         return row
 
-    def _rows_for_host(self, host):
+    def _rows_for_host(self, host) -> Iterator[ScanData]:
         """Yield one row per port, or a single port-less row when asked to."""
         if not host.ports:
             if self.include_hostless:
@@ -86,7 +89,7 @@ class NmapParser:
 
     # --- Public API ---------------------------------------------------------
 
-    def get_simple_df(self):
+    def get_simple_df(self) -> Optional[pd.DataFrame]:
         """Return the report as a DataFrame, or ``None`` if it holds no rows."""
         try:
             report = NmapXMLReport(self.xml_file, validate=self.validate)
@@ -100,12 +103,13 @@ class NmapParser:
         logger.info(f" |+| {self.xml_file} parsed successfully  ")
         return df
 
-    def parse_file(self):
+    def parse_file(self) -> Optional[pd.DataFrame]:
         print(f" *** Parsing | {self.xml_file}")
         return self.get_simple_df()
 
     @staticmethod
-    def parse_file_multiple(xml_file_list, validate=True, include_hostless=False):
+    def parse_file_multiple(xml_file_list: list, validate: bool = True,
+                            include_hostless: bool = False) -> pd.DataFrame:
         """Parse several reports and concatenate them into a single DataFrame.
 
         Reports with no rows are skipped; if none of them yields data the
@@ -123,7 +127,7 @@ class NmapParser:
         return pd.concat(frames, ignore_index=True)
 
     @staticmethod
-    def is_not_ip(val):
+    def is_not_ip(val) -> Optional[str]:
         """Return ``val`` unless it is a bare IP address, in which case ``None``.
 
         Used to blank out "hostnames" that are really just the IP again.
@@ -135,7 +139,8 @@ class NmapParser:
             return val
 
     @staticmethod
-    def merge_df(xml_file_list, validate=True, include_hostless=False):
+    def merge_df(xml_file_list: list, validate: bool = True,
+                 include_hostless: bool = False) -> pd.DataFrame:
         """Merge several reports, keeping the most informative row per IP/port."""
         df = NmapParser.parse_file_multiple(xml_file_list, validate, include_hostless)
         if df.empty:

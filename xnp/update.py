@@ -7,6 +7,7 @@ itself runs only when explicitly asked for with ``--update``.
 
 import os
 import subprocess
+from typing import Optional
 
 import requests
 
@@ -20,7 +21,7 @@ SKIP_ENV_VAR = "XNP_NO_UPDATE_CHECK"
 REQUEST_TIMEOUT = 5
 
 
-def get_latest_version():
+def get_latest_version() -> Optional[str]:
     """Return the latest release tag, or ``None`` if it cannot be fetched."""
     try:
         response = requests.get(REPO_URL, timeout=REQUEST_TIMEOUT)
@@ -35,7 +36,7 @@ def get_latest_version():
     return None
 
 
-def check_for_updates():
+def check_for_updates() -> Optional[str]:
     """Warn the user if a newer release exists. Never modifies the checkout."""
     if os.environ.get(SKIP_ENV_VAR):
         return None
@@ -48,7 +49,7 @@ def check_for_updates():
     return latest_version
 
 
-def update_program():
+def update_program() -> bool:
     """Update the checkout with ``git pull``. Only called for ``--update``."""
     latest_version = get_latest_version()
     if latest_version and latest_version == __version__:

@@ -5,6 +5,7 @@ import json
 import pandas as pd
 import pytest
 
+from xnp.errors import XnpError
 from xnp.output import (
     df_output_filters,
     df_to_csv,
@@ -13,7 +14,6 @@ from xnp.output import (
     get_output_name,
     write_dataframe,
 )
-from xnp.errors import XnpError
 from xnp.parser import NmapParser
 
 pytestmark = pytest.mark.usefixtures("quiet_logs")

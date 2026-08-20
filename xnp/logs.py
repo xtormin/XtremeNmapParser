@@ -19,12 +19,12 @@ LEVEL_STYLES = {
 }
 
 
-def get_logger(name):
+def get_logger(name: str) -> logging.Logger:
     """Return the logger for ``name`` (normally the module's ``__name__``)."""
     return logging.getLogger(name)
 
 
-def setup_logging(verbose=False):
+def setup_logging(verbose: bool = False) -> logging.Logger:
     """Install the coloured console handler on the ``xnp`` logger.
 
     Safe to call more than once: coloredlogs reconfigures the existing handler

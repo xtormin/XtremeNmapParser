@@ -18,6 +18,7 @@ tests can build a configuration by hand.
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional, Union
 
 import confuse
 
@@ -45,7 +46,7 @@ class XnpConfig:
     columns_all: tuple
     version: str = __version__
 
-    def columns_for(self, choice):
+    def columns_for(self, choice: Optional[str]) -> list:
         """Return the column list for a ``-C/--columns`` choice.
 
         ``None`` and unknown values fall back to the default set, matching the
@@ -93,7 +94,7 @@ def _build(path=None):
         raise XnpConfigError(f"Invalid configuration: {exc}") from exc
 
 
-def load_config(path=None):
+def load_config(path: Optional[Union[str, Path]] = None) -> XnpConfig:
     """Return the :class:`XnpConfig`, building and caching it on first use."""
     key = (str(path) if path is not None else None, os.environ.get(CONFIG_ENV_VAR))
     if key not in _CACHE:
@@ -101,6 +102,6 @@ def load_config(path=None):
     return _CACHE[key]
 
 
-def reset_config():
+def reset_config() -> None:
     """Drop the cached configuration (used by the test suite)."""
     _CACHE.clear()

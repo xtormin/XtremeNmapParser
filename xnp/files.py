@@ -1,11 +1,13 @@
 """Filesystem helpers for locating nmap XML files."""
 
 from pathlib import Path
+from typing import Optional, Union
 
-from xnp.config import load_config
+from xnp.config import XnpConfig, load_config
 
 
-def find_xml_files(directory, recursive=False, config=None):
+def find_xml_files(directory: Union[str, Path], recursive: bool = False,
+                   config: Optional[XnpConfig] = None) -> list:
     """Return the sorted nmap XML files in ``directory``.
 
     Only regular files are returned: matching on the name alone used to let a

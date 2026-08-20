@@ -5,6 +5,8 @@ the configuration was read from the relative path ``config/config.yaml`` at
 import time, so nothing worked outside the repository root.
 """
 
+import dataclasses
+
 import pytest
 
 from xnp import __version__
@@ -82,7 +84,7 @@ def test_config_is_cached():
 
 
 def test_config_is_immutable():
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         load_config().app_name = "nope"
 
 

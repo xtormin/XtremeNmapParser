@@ -3,6 +3,8 @@
 import argparse
 import os
 import sys
+from collections.abc import Sequence
+from typing import Optional
 
 from xnp import __version__, banner, update
 from xnp import files as func
@@ -15,7 +17,7 @@ from xnp.parser import NmapParser
 logger = get_logger(__name__)
 
 
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="xnp",
         add_help=True,
@@ -92,7 +94,7 @@ def validate_args(parser, args):
             parser.error(f"{name} only makes sense together with -d/--directory")
 
 
-def parse_args(argv=None):
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = build_parser()
     args = parser.parse_args(argv)
     validate_args(parser, args)
@@ -149,7 +151,7 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
                 print("\n")
 
 
-def main(argv=None):
+def main(argv: Optional[Sequence[str]] = None) -> int:
     """Run XNP. Returns the process exit code."""
     args = parse_args(argv)
     setup_logging(args.verbose)

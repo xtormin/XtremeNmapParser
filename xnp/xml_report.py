@@ -9,8 +9,22 @@ from xnp.logs import get_logger
 
 logger = get_logger(__name__)
 
+
+class _XmlNode:
+    """Base for every mapped nmap element.
+
+    Renders itself from its own attributes, which replaces ~30 hand written
+    __str__ methods that had to be kept in sync with the attribute lists by
+    hand (one of them printed `remaining=` from the wrong field).
+    """
+
+    def __str__(self) -> str:
+        fields = ", ".join(f"{name}={value}" for name, value in vars(self).items())
+        return f"{type(self).__name__}({fields})"
+
+
 class NmapXMLReport:
-    class NmapRun:
+    class NmapRun(_XmlNode):
         def __init__(self, element):
             self.scanner = element.get('scanner')
             self.args = element.get('args')
@@ -20,10 +34,7 @@ class NmapXMLReport:
             self.profile_name = element.get('profile_name')
             self.xmloutputversion = element.get('xmloutputversion')
 
-        def __str__(self):
-            return f"NmapRun(scanner={self.scanner}, args={self.args}, start={self.start}, startstr={self.startstr}, version={self.version}, profile_name={self.profile_name}, xmloutputversion={self.xmloutputversion})"
-
-    class ScanInfo:
+    class ScanInfo(_XmlNode):
         def __init__(self, element):
             self.type = element.get('type')
             self.scanflags = element.get('scanflags')
@@ -31,60 +42,39 @@ class NmapXMLReport:
             self.numservices = element.get('numservices')
             self.services = element.get('services')
 
-        def __str__(self):
-            return f"ScanInfo(type={self.type}, scanflags={self.scanflags}, protocol={self.protocol}, numservices={self.numservices}, services={self.services})"
-
-    class Verbose:
+    class Verbose(_XmlNode):
         def __init__(self, element):
             self.level = element.get('level')
 
-        def __str__(self):
-            return f"Verbose(level={self.level})"
-
-    class Debugging:
+    class Debugging(_XmlNode):
         def __init__(self, element):
             self.level = element.get('level')
 
-        def __str__(self):
-            return f"Debugging(level={self.level})"
-
-    class Target:
+    class Target(_XmlNode):
         def __init__(self, element):
             self.specification = element.get('specification')
             self.status = element.get('status')
             self.reason = element.get('reason')
 
-        def __str__(self):
-            return f"Target(specification={self.specification}, status={self.status}, reason={self.reason})"
-
-    class TaskBegin:
+    class TaskBegin(_XmlNode):
         def __init__(self, element):
             self.task = element.get('task')
             self.time = element.get('time')
             self.extrainfo = element.get('extrainfo')
-        def __str__(self):
-            return f"TaskBegin(task={self.task}, time={self.time}, extrainfo={self.extrainfo})"
-
-    class TaskProgress:
+    class TaskProgress(_XmlNode):
         def __init__(self, element):
             self.task = element.get('task')
             self.time = element.get('time')
             self.percent = element.get('percent')
             self.remaining = element.get('remaining')
             self.etc = element.get('etc')
-        def __str__(self):
-            return f"TaskProgress(task={self.task}, time={self.time}, percent={self.percent}, remaining={self.percent}, etc={self.etc})"
-
-    class TaskEnd:
+    class TaskEnd(_XmlNode):
         def __init__(self, element):
             self.task = element.get('task')
             self.time = element.get('time')
             self.extrainfo = element.get('extrainfo')
 
-        def __str__(self):
-            return f"TaskEnd(task={self.task}, time={self.time}, extrainfo={self.extrainfo})"
-
-    class Host:
+    class Host(_XmlNode):
         def __init__(self, element):
             self.starttime = element.get('starttime')
             self.endtime = element.get('endtime')
@@ -103,10 +93,7 @@ class NmapXMLReport:
             self.tcptssequence = [self.TcptsSequence(e) for e in element.findall('tcptssequence')]
             self.trace = [self.Trace(e) for e in element.findall('trace')]
 
-        def __str__(self):
-            return f"Host(starttime={self.starttime}, endtime={self.endtime}, timedout={self.timedout}, comment={self.comment}, status={self.status}, addresses={self.addresses}, hostnames={self.hostnames}, ports={self.ports}, extraports={self.extraports})"
-
-        class Port:
+        class Port(_XmlNode):
             def __init__(self, element):
                 self.protocol = element.get('protocol')
                 self.portid = element.get('portid')
@@ -115,27 +102,18 @@ class NmapXMLReport:
                 self.service = [self.Service(e) for e in element.findall('service')]
                 self.script = [self.Script(e) for e in element.findall('script')]
 
-            def __str__(self):
-                return f"Port(protocol={self.protocol}, portid={self.portid}, state={self.state})"
-
-            class State:
+            class State(_XmlNode):
                 def __init__(self, element):
                     self.state = element.get('state')
                     self.reason = element.get('reason')
                     self.reason_ttl = element.get('reason_ttl')
                     self.reason_ip = element.get('reason_ip')
 
-                def __str__(self):
-                    return f"State(state={self.state}, reason={self.reason}, reason_ttl={self.reason_ttl}, reason_ip={self.reason_ip})"
-
-            class Owner:
+            class Owner(_XmlNode):
                 def __init__(self, element):
                     self.name = element.get('name')
 
-                def __str__(self):
-                    return f"Owner(name={self.name})"
-
-            class Service:
+            class Service(_XmlNode):
                 def __init__(self, element):
                     self.name = element.get('name')
                     self.conf = element.get('conf')
@@ -154,74 +132,50 @@ class NmapXMLReport:
                     self.servicefp = element.get('servicefp')
                     self.cpe = [cpe.text for cpe in element.findall('cpe')]
 
-                def __str__(self):
-                    return f"Service(name={self.name}, conf={self.conf}, method={self.method}, version={self.version}, product={self.product}, extrainfo={self.extrainfo}, tunnel={self.tunnel}, proto={self.proto}, rpcnum={self.rpcnum}, lowver={self.lowver}, highver={self.highver}, hostname={self.hostname}, ostype={self.ostype}, devicetype={self.devicetype}, servicefp={self.servicefp}, cpe={self.cpe})"
-
-                class Cpe:
+                class Cpe(_XmlNode):
                     def __init__(self, element):
                         self.cpe_data = element.text
 
-                    def __str__(self):
-                        return f"Cpe(cpe_data={self.cpe_data})"
-
-            class Script:
+            class Script(_XmlNode):
                 def __init__(self, element):
                     self.id = element.get('id')
                     self.output = element.get('output')
                     self.content = element.text
 
-                def __str__(self):
-                    return f"Script(id={self.id}, output={self.output}, content={self.content})"
-
-        class Extraports:
+        class Extraports(_XmlNode):
             def __init__(self, element):
                 self.state = element.get('state')
                 self.count = element.get('count')
                 self.extrareasons = [self.Extrareasons(e) for e in element.findall('extrareasons')]
 
-            def __str__(self):
-                return f"Extraports(state={self.state}, count={self.count}, extrareasons={self.extrareasons})"
-
-            class Extrareasons:
+            class Extrareasons(_XmlNode):
                 def __init__(self, element):
                     self.reason = element.get('reason')
                     self.count = element.get('count')
                     self.proto = element.get('proto')
                     self.ports = element.get('ports')
 
-                def __str__(self):
-                    return f"Extrareasons(reason={self.reason}, count={self.count}, proto={self.proto}, ports={self.ports})"
-
-        class OS:
+        class OS(_XmlNode):
             def __init__(self, element):
                 self.portused = [self.PortUsed(portused) for portused in element.findall('portused')]
                 self.osmatch = [self.OSMatch(osmatch) for osmatch in element.findall('osmatch')]
                 self.osfingerprint = [self.OSFingerprint(osfingerprint) for osfingerprint in
                                       element.findall('osfingerprint')]
 
-            def __str__(self):
-                return f'OS(portused={self.portused}, osmatch={self.osmatch}, osfingerprint={self.osfingerprint})'
-
-            class PortUsed:
+            class PortUsed(_XmlNode):
                 def __init__(self, element):
                     self.state = element.get('state')
                     self.proto = element.get('proto')
                     self.portid = element.get('portid')
 
-                def __str__(self):
-                    return f'PortUsed(state={self.state}, proto={self.proto}, portid={self.portid})'
-
-            class OSMatch:
+            class OSMatch(_XmlNode):
                 def __init__(self, element):
                     self.name = element.get('name')
                     self.accuracy = element.get('accuracy')
                     self.line = element.get('line')
                     self.osclass = [self.OSClass(osclass) for osclass in element.findall('osclass')]
 
-                def __str__(self):
-                    return f'OSMatch(name={self.name}, accuracy={self.accuracy}, line={self.line}, osclass={self.osclass})'
-
-                class OSClass:
+                class OSClass(_XmlNode):
                     def __init__(self, element):
                         self.vendor = element.get('vendor')
                         self.osgen = element.get('osgen')
@@ -230,132 +184,84 @@ class NmapXMLReport:
                         self.osfamily = element.get('osfamily')
                         self.cpe = [cpe.text for cpe in element.findall('cpe')]
 
-                    def __str__(self):
-                        return f'OSClass(vendor={self.vendor}, osgen={self.osgen}, type={self.type}, accuracy={self.accuracy}, osfamily={self.osfamily}, cpe={self.cpe})'
-
-            class OSFingerprint:
+            class OSFingerprint(_XmlNode):
                 def __init__(self, element):
                     self.fingerprint = element.get('fingerprint')
 
-                def __str__(self):
-                    return f'OSFingerprint(fingerprint={self.fingerprint})'
-
-        class Distance:
+        class Distance(_XmlNode):
             def __init__(self, element):
                 self.value = element.get('value')
 
-            def __str__(self):
-                return f'Distance(value={self.value})'
-
-        class Uptime:
+        class Uptime(_XmlNode):
             def __init__(self, element):
                 self.seconds = element.get('seconds')
                 self.lastboot = element.get('lastboot')
 
-            def __str__(self):
-                return f'Uptime(seconds={self.seconds}, lastboot={self.lastboot})'
-
-        class TcpSequence:
+        class TcpSequence(_XmlNode):
             def __init__(self, element):
                 self.index = element.get('index')
                 self.difficulty = element.get('difficulty')
                 self.values = element.get('values')
 
-            def __str__(self):
-                return f'TcpSequence(index={self.index}, difficulty={self.difficulty}, values={self.values})'
-
-        class IpidSequence:
+        class IpidSequence(_XmlNode):
             def __init__(self, element):
                 self.class_ = element.get('class')
                 self.values = element.get('values')
 
-            def __str__(self):
-                return f'IpidSequence(class={self.class_}, values={self.values})'
-
-        class TcptsSequence:
+        class TcptsSequence(_XmlNode):
             def __init__(self, element):
                 self.class_ = element.get('class')
                 self.values = element.get('values')
 
-            def __str__(self):
-                return f'TcptsSequence(class={self.class_}, values={self.values})'
-
-        class Trace:
+        class Trace(_XmlNode):
             def __init__(self, element):
                 self.proto = element.get('proto')
                 self.port = element.get('port')
                 self.hops = [self.Hop(e) for e in element.findall('hop')]
 
-            def __str__(self):
-                return f'Trace(proto={self.proto}, port={self.port}, hops={self.hops})'
-
-            class Hop:
+            class Hop(_XmlNode):
                 def __init__(self, element):
                     self.ttl = element.get('ttl')
                     self.rtt = element.get('rtt')
                     self.ipaddr = element.get('ipaddr')
                     self.host = element.get('host')
 
-                def __str__(self):
-                    return f'Hop(ttl={self.ttl}, rtt={self.rtt}, ipaddr={self.ipaddr}, host={self.host})'
-
-    class Status:
+    class Status(_XmlNode):
         def __init__(self, element):
             self.state = element.get('state')
             self.reason = element.get('reason')
             self.reason_ttl = element.get('reason_ttl')
 
-        def __str__(self):
-            return f"Status(state={self.state}, reason={self.reason}, reason_ttl={self.reason_ttl})"
-
-    class Address:
+    class Address(_XmlNode):
         def __init__(self, element):
             self.addr = element.get('addr')
             self.addrtype = element.get('addrtype')
             self.vendor = element.get('vendor')
 
-        def __str__(self):
-            return f"Address(addr={self.addr}, addrtype={self.addrtype}, vendor={self.vendor})"
-
-    class Hostnames:
+    class Hostnames(_XmlNode):
         def __init__(self, element):
             self.hostnames = [self.Hostname(e) for e in element.findall('hostname')]
 
-        def __str__(self):
-            return f"Hostnames(hostnames={self.hostnames})"
-
-        class Hostname:
+        class Hostname(_XmlNode):
             def __init__(self, element):
                 self.name = element.get('name')
                 self.type = element.get('type')
 
-            def __str__(self):
-                return f"Hostname(name={self.name}, type={self.type})"
-
-    class HostHint:
+    class HostHint(_XmlNode):
         def __init__(self, element):
             self.status = NmapXMLReport.Status(element.find('status'))
             self.addresses = [NmapXMLReport.Address(e) for e in element.findall('address')]
             self.hostnames = NmapXMLReport.Hostnames(element.find('hostnames'))
-        def __str__(self):
-            return f"HostHint(status={self.status}, addresses={self.addresses}, hostnames={self.hostnames})"
-
-    class Table:
+    class Table(_XmlNode):
         def __init__(self, element):
             self.key = element.get('key')
             self.table_elements = [self.Elem(elem) for elem in element.findall('elem')]
             self.nested_tables = [self.Table(table) for table in element.findall('table')]
 
-        def __str__(self):
-            return f"Table(key={self.key}, table_elements={self.table_elements}, nested_tables={self.nested_tables})"
-
-        class Elem:
+        class Elem(_XmlNode):
             def __init__(self, element):
                 self.key = element.get('key')
                 self.content = element.text
-
-            def __str__(self):
-                return f"Elem(key={self.key}, content={self.content})"
 
     #: Parser used for every nmap report.
     #:
@@ -375,7 +281,7 @@ class NmapXMLReport:
     #: How many DTD messages to quote when a report does not validate.
     MAX_REPORTED_DTD_ERRORS = 5
 
-    def __init__(self, xml_file, validate=True):
+    def __init__(self, xml_file: str, validate: bool = True) -> None:
         """Parse ``xml_file`` into the object model.
 
         Validation happens in three layers:
@@ -432,7 +338,7 @@ class NmapXMLReport:
         except OSError as exc:
             raise XnpError(f" |x| Error | Could not read the nmap DTD: {exc}") from exc
 
-    def validate_dtd(self, tree):
+    def validate_dtd(self, tree) -> bool:
         """Validate an already parsed tree, raising :class:`InvalidNmapReport`."""
         dtd = self.load_dtd()
         if dtd.validate(tree):

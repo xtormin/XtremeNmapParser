@@ -6,10 +6,10 @@ from xnp import __version__
 
 
 def main():
-    BANNER = f"""                                          
+    BANNER = rf"""                                          
                     _____   ______        _____   
    _____      _____|\    \ |\     \   ___|\    \  
-   \    \    /    / \\    \| \     \ |    |\    \ 
+   \    \    /    / \    \| \     \ |    |\    \ 
     \    \  /    /   \|    \  \     ||    | |    |
      \____\/____/     |     \  |    ||    |/____/|
      /    /\    \     |      \ |    ||    ||    ||
@@ -29,7 +29,8 @@ def main():
 
     print(colored(BANNER, 'red', attrs=['bold']))
 
-def print_arguments_info(single_xml, folder_multiple_xml, list_output_format, file_output_name, merger, recursive, df_columns, only_open_ports):
+def print_arguments_info(single_xml, folder_multiple_xml, list_output_format,
+                         file_output_name, merger, recursive, df_columns, only_open_ports):
     df_columns = " ".join(df_columns)
     BANNER = f"""  
  --------------------------------------------------------------  

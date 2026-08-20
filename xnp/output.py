@@ -1,10 +1,11 @@
 """Filtering and export of the parsed DataFrame (CSV / XLSX / JSON)."""
 
 import os
+from typing import Optional
 
 import pandas as pd
 
-from xnp.config import load_config
+from xnp.config import XnpConfig, load_config
 from xnp.errors import XnpError
 from xnp.logs import get_logger
 
@@ -40,7 +41,8 @@ def _ensure_parent_dir(filename):
             raise XnpError(f" |x| Error | Could not create {parent}: {exc}") from exc
 
 
-def df_to_xlsx(df, filename, config=None):
+def df_to_xlsx(df: pd.DataFrame, filename: str,
+               config: Optional[XnpConfig] = None) -> None:
     config = config or load_config()
     _ensure_parent_dir(filename)
     try:
@@ -63,7 +65,7 @@ def df_to_xlsx(df, filename, config=None):
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
 
-def df_to_csv(df, filename):
+def df_to_csv(df: pd.DataFrame, filename: str) -> None:
     _ensure_parent_dir(filename)
     try:
         df.to_csv(filename, sep=';', encoding='utf-8', index=False)
@@ -72,7 +74,7 @@ def df_to_csv(df, filename):
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
 
-def df_to_json(df, filename):
+def df_to_json(df: pd.DataFrame, filename: str) -> None:
     _ensure_parent_dir(filename)
     try:
         df.to_json(filename, orient='records', lines=True)
@@ -88,7 +90,9 @@ WRITERS = {
 }
 
 
-def get_output_name(file_xml, output_name, merger, config=None):
+def get_output_name(file_xml: Optional[str], output_name: Optional[str],
+                    merger: Optional[bool],
+                    config: Optional[XnpConfig] = None) -> Optional[str]:
     """Work out the base name (no extension) for the output files.
 
     An explicit ``-oN`` always wins; it used to be silently dropped whenever
@@ -129,7 +133,8 @@ def export_multiple_xml(df, list_output_format, file_output_name, merger, config
                     file_output_name=file_output_name, merger=merger, config=config)
 
 
-def df_output_filters(df, df_columns, only_open_ports):
+def df_output_filters(df: Optional[pd.DataFrame], df_columns: list,
+                      only_open_ports: bool) -> Optional[pd.DataFrame]:
     """Select the requested columns, optionally keep only open ports, and sort."""
     if df is None or df.empty:
         return df
