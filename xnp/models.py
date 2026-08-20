@@ -19,11 +19,17 @@ class ScanData:
         return dict(self.data)
 
 
+def empty_dataframe(config=None):
+    """An empty DataFrame carrying the full set of output columns."""
+    config = config or load_config()
+    return pd.DataFrame(columns=list(config.columns_all))
+
+
 def to_dataframe(scan_data_list, config=None):
     """Build a DataFrame from ``ScanData`` rows.
 
-    Returns ``None`` for an empty list, matching the historical behaviour that
-    callers rely on to detect "file has no scan data".
+    Returns ``None`` for an empty list: callers use that to tell "this report
+    holds no scan data" apart from "this report failed to parse".
     """
     if not scan_data_list:
         return None

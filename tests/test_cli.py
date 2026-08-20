@@ -9,7 +9,8 @@ pytestmark = pytest.mark.usefixtures("quiet_logs")
 
 
 def test_defaults():
-    args = parse_args([])
+    # build_parser() on its own: these check parsing, not input validation.
+    args = build_parser().parse_args([])
     assert args.file is None
     assert args.directory is None
     assert args.outputformat == ["csv", "xlsx", "json"]
@@ -22,14 +23,17 @@ def test_defaults():
 
 
 def test_short_and_long_flags_agree():
-    short = parse_args(["-f", "a.xml", "-oF", "csv", "-oN", "n", "-M", "-R", "-C", "all", "-v"])
-    long = parse_args(["--file", "a.xml", "--outputformat", "csv", "--outputname", "n",
-                       "--merger", "--recursive", "--columns", "all", "--verbose"])
+    parser = build_parser()
+    short = parser.parse_args(["-f", "a.xml", "-oF", "csv", "-oN", "n", "-M", "-R",
+                               "-C", "all", "-v"])
+    long = build_parser().parse_args(["--file", "a.xml", "--outputformat", "csv",
+                                      "--outputname", "n", "--merger", "--recursive",
+                                      "--columns", "all", "--verbose"])
     assert vars(short) == vars(long)
 
 
 def test_several_output_formats_are_accepted():
-    assert parse_args(["-oF", "csv", "json"]).outputformat == ["csv", "json"]
+    assert build_parser().parse_args(["-oF", "csv", "json"]).outputformat == ["csv", "json"]
 
 
 @pytest.mark.parametrize("argv", [
@@ -38,12 +42,12 @@ def test_several_output_formats_are_accepted():
 ])
 def test_invalid_choices_are_rejected(argv):
     with pytest.raises(SystemExit):
-        parse_args(argv)
+        build_parser().parse_args(argv)
 
 
 def test_version_flag(capsys):
     with pytest.raises(SystemExit) as excinfo:
-        parse_args(["--version"])
+        build_parser().parse_args(["--version"])
     assert excinfo.value.code == 0
     assert __version__ in capsys.readouterr().out
 
@@ -57,20 +61,55 @@ def test_help_mentions_every_flag(capsys):
         assert flag in out
 
 
-# --- Bugs pinned here, fixed in the next commit -----------------------------
-
-def test_CURRENT_no_input_is_accepted_and_does_nothing(run_cli, tmp_path, capsys):
-    """BUG: with neither -f nor -d, XNP prints its banner and exits 0."""
-    assert run_cli([], cwd=tmp_path) == 0
-    assert list(tmp_path.iterdir()) == []
-
-
-def test_CURRENT_a_missing_file_is_not_validated(run_cli, tmp_path):
-    """BUG: argparse accepts a path that does not exist; it fails later."""
-    args = parse_args(["-f", str(tmp_path / "nope.xml")])
-    assert args.file.endswith("nope.xml")
+def test_the_new_flags_default_to_off():
+    args = parse_args(["-f", __file__])
+    assert args.include_hostless is False
+    assert args.validate is True
+    assert args.update is False
 
 
-def test_CURRENT_merger_without_a_directory_is_accepted(run_cli, tmp_path):
-    """BUG: -M and -R only mean something with -d, but are accepted alone."""
-    assert run_cli(["-M", "-R"], cwd=tmp_path) == 0
+def test_no_validate_turns_validation_off():
+    assert parse_args(["-f", __file__, "--no-validate"]).validate is False
+
+
+def test_include_hostless_is_opt_in():
+    assert parse_args(["-f", __file__, "--include-hostless"]).include_hostless is True
+
+
+def test_update_needs_no_input_file():
+    assert parse_args(["--update"]).update is True
+
+
+# --- Argument validation ----------------------------------------------------
+
+def error_message(capsys, argv):
+    with pytest.raises(SystemExit) as excinfo:
+        parse_args(argv)
+    assert excinfo.value.code == 2
+    return capsys.readouterr().err
+
+
+def test_no_input_at_all_is_rejected(capsys):
+    """XNP used to print its banner and exit 0 without doing anything."""
+    assert "nothing to do" in error_message(capsys, [])
+
+
+def test_a_missing_file_is_rejected_up_front(capsys, tmp_path):
+    message = error_message(capsys, ["-f", str(tmp_path / "nope.xml")])
+    assert "file not found" in message
+
+
+def test_a_file_passed_as_a_directory_is_rejected(capsys, tmp_path):
+    scan = tmp_path / "scan.xml"
+    scan.write_text("<x/>")
+    assert "not a directory" in error_message(capsys, ["-d", str(scan)])
+
+
+@pytest.mark.parametrize("flag", ["-M", "-R"])
+def test_directory_only_flags_are_rejected_without_a_directory(capsys, flag):
+    message = error_message(capsys, ["-f", __file__, flag])
+    assert "only makes sense together with -d" in message
+
+
+def test_a_valid_directory_is_accepted(tmp_path):
+    assert parse_args(["-d", str(tmp_path), "-M", "-R"]).directory == str(tmp_path)

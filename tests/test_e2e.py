@@ -76,20 +76,58 @@ def test_a_scan_without_data_produces_no_output(run_cli, tmp_path, fixtures_dir)
     assert not (tmp_path / "empty.csv").exists()
 
 
-# --- Bugs pinned here, fixed in the next commit -----------------------------
-
-def test_CURRENT_output_name_is_ignored_for_a_single_file(run_cli, tmp_path, fixtures_dir):
-    """BUG: -oN is silently dropped when -f is used."""
+def test_an_explicit_output_name_is_honoured_for_a_single_file(run_cli, tmp_path, fixtures_dir):
+    """-oN used to be silently dropped whenever -f was used."""
     scan = tmp_path / "scan.xml"
     shutil.copy(fixtures_dir / "single_host.xml", scan)
     assert run_cli(["-f", str(scan), "-oN", "informe", "-oF", "csv"], cwd=tmp_path) == 0
-    assert (tmp_path / "scan.csv").is_file()
-    assert not (tmp_path / "informe.csv").exists()
+    assert (tmp_path / "informe.csv").is_file()
 
 
-def test_CURRENT_a_non_nmap_file_crashes_with_a_traceback(run_cli, tmp_path, fixtures_dir):
-    """BUG: an unparseable input escapes as AttributeError instead of exit 2."""
+def test_a_non_nmap_file_exits_cleanly(run_cli, tmp_path, fixtures_dir, capsys):
+    """An unparseable input used to escape as an AttributeError traceback."""
     scan = tmp_path / "bad.xml"
     shutil.copy(fixtures_dir / "not_nmap.xml", scan)
-    with pytest.raises(AttributeError):
-        run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path)
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 2
+    assert not (tmp_path / "bad.csv").exists()
+
+
+def test_masscan_output_needs_no_validate(run_cli, tmp_path, fixtures_dir):
+    scan = tmp_path / "masscan.xml"
+    shutil.copy(fixtures_dir / "masscan.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 2
+    assert run_cli(["-f", str(scan), "-oF", "csv", "--no-validate"], cwd=tmp_path) == 0
+    assert pd.read_csv(tmp_path / "masscan.csv", sep=";").iloc[0]["IP"] == "10.0.0.8"
+
+
+def test_include_hostless_reports_a_down_host(run_cli, tmp_path, fixtures_dir):
+    scan = tmp_path / "down.xml"
+    shutil.copy(fixtures_dir / "host_down.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 0
+    assert not (tmp_path / "down.csv").exists()
+
+    assert run_cli(["-f", str(scan), "-oF", "csv", "--include-hostless"], cwd=tmp_path) == 0
+    result = pd.read_csv(tmp_path / "down.csv", sep=";")
+    assert list(result["IP"]) == ["10.0.0.4", "10.0.0.5"]
+    assert result["Port"].isna().all()
+
+
+def test_a_truncated_scan_reports_an_error(run_cli, tmp_path, fixtures_dir):
+    scan = tmp_path / "cut.xml"
+    shutil.copy(fixtures_dir / "malformed.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 2
+
+
+def test_the_startup_version_check_is_skipped_in_tests(run_cli, tmp_path, fixtures_dir,
+                                                       monkeypatch):
+    """No XNP run may reach the network or the user's git checkout."""
+    import xnp.update as update_module
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("the network must not be touched")
+
+    monkeypatch.setattr(update_module.requests, "get", forbidden)
+    monkeypatch.setattr(update_module.subprocess, "run", forbidden)
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 0

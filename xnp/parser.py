@@ -5,108 +5,152 @@ import ipaddress
 import pandas as pd
 from lxml import etree
 
+from xnp.errors import InvalidNmapReport
 from xnp.logs import get_logger
-from xnp.models import ScanData, to_dataframe
+from xnp.models import ScanData, empty_dataframe, to_dataframe
 from xnp.xml_report import NmapXMLReport
 
 logger = get_logger(__name__)
 
+#: Columns used to decide which duplicate row carries the most information.
+RELEVANCE_COLUMNS = ['Product', 'Version', 'Extrainfo']
+RELEVANCE_HELPER_COLUMN = 'RelevantDuplicate'
+
+
 class NmapParser:
-    def __init__(self, xml_file=None):
+    """Parse one nmap XML report into a DataFrame."""
+
+    def __init__(self, xml_file=None, validate=True, include_hostless=False):
         self.xml_file = xml_file
+        self.validate = validate
+        self.include_hostless = include_hostless
+
+    # --- Per-host extraction ------------------------------------------------
+
+    @staticmethod
+    def _host_address(host):
+        """Return the host address, preferring IPv4 but falling back to IPv6.
+
+        Reading only ``addrtype == 'ipv4'`` used to leave every IPv6 host
+        without an address.
+        """
+        addresses = {a.addrtype: a.addr for a in host.addresses}
+        return addresses.get('ipv4') or addresses.get('ipv6')
+
+    @staticmethod
+    def _host_name(host):
+        name = None
+        for hostnames in host.hostnames:
+            for hostname in hostnames.hostnames:
+                name = hostname.name
+        return name
+
+    @staticmethod
+    def _host_state(host):
+        return host.status[0].state if host.status else None
+
+    @staticmethod
+    def _scripts(port):
+        """Render a port's scripts as readable ``id: output`` lines."""
+        return "\n".join(
+            f"{script.id}: {script.output}" for script in port.script
+        ) or None
+
+    def _row(self, host):
+        row = ScanData()
+        row.data["Hostname"] = self._host_name(host)
+        row.data["IP"] = self._host_address(host)
+        row.data["State"] = self._host_state(host)
+        return row
+
+    def _rows_for_host(self, host):
+        """Yield one row per port, or a single port-less row when asked to."""
+        if not host.ports:
+            if self.include_hostless:
+                yield self._row(host)
+            return
+
+        for port in host.ports:
+            row = self._row(host)
+            row.data["Port"] = port.portid
+            row.data["Protocol"] = port.protocol
+            row.data["Scripts"] = self._scripts(port)
+            if port.state:
+                row.data["State Port"] = port.state[0].state
+            for service in port.service:
+                row.data["Service Name"] = service.name
+                row.data["Product"] = service.product
+                row.data["Version"] = service.version
+                row.data["Extrainfo"] = service.extrainfo
+            yield row
+
+    # --- Public API ---------------------------------------------------------
 
     def get_simple_df(self):
+        """Return the report as a DataFrame, or ``None`` if it holds no rows."""
         try:
-            nmap_report = NmapXMLReport(self.xml_file)
-            all_rows_dataframe = []
-            for host in nmap_report.hosts:
-                for port in host.ports:
-                    dataframe = ScanData()
-                    for hostname in host.hostnames:
-                        for host_name in hostname.hostnames:
-                            dataframe.data["Hostname"] = host_name.name
-                    for address in host.addresses:
-                        if address.addrtype == 'ipv4':
-                            dataframe.data["IP"] = address.addr
-                    for status in host.status:
-                        dataframe.data["State"] = status.state
-                    dataframe.data["Port"] = port.portid
-                    dataframe.data["Protocol"] = port.protocol
-                    script_data = []
-                    for script in port.script:
-                        script_data.append(script.__str__())
-                    dataframe.data["Scripts"] = script_data
-                    for state in port.state:
-                        dataframe.data["State Port"] = state.state
-                    for service in port.service:
-                        dataframe.data["Service Name"] = service.name
-                        dataframe.data["Product"] = service.product
-                        dataframe.data["Version"] = service.version
-                        dataframe.data["Extrainfo"] = service.extrainfo
-                    all_rows_dataframe.append(dataframe)
+            report = NmapXMLReport(self.xml_file, validate=self.validate)
+        except etree.XMLSyntaxError as exc:
+            raise InvalidNmapReport(
+                f" |x| Error | Could not parse {self.xml_file}. The scan may not have "
+                f"finished properly and the file is truncated.\n   {exc}") from exc
 
-            df = to_dataframe(all_rows_dataframe)
-            logger.info(f" |+| {self.xml_file} parsed successfully  ")
-            return df
-
-        except etree.ParseError as EPE:
-            logger.error(
-                f" |x| Error | Error processing the XML file. It's possible that the scanner did not finish properly and the information is corrupted.")
-            logger.error(EPE)
-
-        except UnboundLocalError as ULE:
-            logger.warning(
-                f" |?| Warning | The file may not have any information or may not exist.")
-            logger.warning("UnboundLocalError: 'dataframe' variable was referenced before assignment. Ensure 'dataframe' is defined before attempting to call 'to_dataframe' on it.")
-            logger.warning(ULE)
-
+        rows = [row for host in report.hosts for row in self._rows_for_host(host)]
+        df = to_dataframe(rows)
+        logger.info(f" |+| {self.xml_file} parsed successfully  ")
+        return df
 
     def parse_file(self):
         print(f" *** Parsing | {self.xml_file}")
-        nmap_parser = NmapParser(self.xml_file)
-        df = nmap_parser.get_simple_df()
-        return df
+        return self.get_simple_df()
 
-    def parse_file_multiple(xml_file_list):
-        # Initialize a list to store the dataframes
-        df_list = []
+    @staticmethod
+    def parse_file_multiple(xml_file_list, validate=True, include_hostless=False):
+        """Parse several reports and concatenate them into a single DataFrame.
 
-        # Loop over the XML files and append their data to df_all
+        Reports with no rows are skipped; if none of them yields data the
+        result is an empty DataFrame with the right columns rather than a
+        crash or ``None``.
+        """
+        frames = []
         for xml_file in xml_file_list:
-            df = NmapParser(xml_file).parse_file()
+            df = NmapParser(xml_file, validate, include_hostless).parse_file()
+            if df is not None and not df.empty:
+                frames.append(df)
 
-            # Append the dataframe to df_list
-            df_list.append(df)
+        if not frames:
+            return empty_dataframe()
+        return pd.concat(frames, ignore_index=True)
 
-        # Concatenate all dataframes in df_list
-        df = pd.concat(df_list, ignore_index=True)
-
-        return df
-
+    @staticmethod
     def is_not_ip(val):
+        """Return ``val`` unless it is a bare IP address, in which case ``None``.
+
+        Used to blank out "hostnames" that are really just the IP again.
+        """
         try:
             ipaddress.ip_address(val)
             return None
         except ValueError:
             return val
 
-    def merge_df(xml_file_list):
+    @staticmethod
+    def merge_df(xml_file_list, validate=True, include_hostless=False):
+        """Merge several reports, keeping the most informative row per IP/port."""
+        df = NmapParser.parse_file_multiple(xml_file_list, validate, include_hostless)
+        if df.empty:
+            return df
 
-        df = NmapParser.parse_file_multiple(xml_file_list)
-
-        # Define the columns to check for non-null values
-        cols_to_check = ['Product', 'Version', 'Extrainfo']
-
-        # Add a 'RelevantDuplicate' column that counts the number of non-null values in the specified columns for each row
-        df['RelevantDuplicate'] = df[cols_to_check].notna().sum(axis=1)
-
-        # Sort by 'IP', 'Port', 'State', 'RelevantDuplicate' (in descending order so larger counts come first), then drop duplicates
-        df = df.sort_values(by=['IP', 'Port', 'State', 'RelevantDuplicate'], ascending=[True, True, False, False])
+        # Rank duplicates by how many service detection fields they filled in.
+        df[RELEVANCE_HELPER_COLUMN] = df[RELEVANCE_COLUMNS].notna().sum(axis=1)
+        df = df.sort_values(
+            by=['IP', 'Port', 'State', RELEVANCE_HELPER_COLUMN],
+            ascending=[True, True, False, False])
         df = df.drop_duplicates(subset=['IP', 'Port'], keep='first')
+        df = df.drop(columns=RELEVANCE_HELPER_COLUMN)
 
-        df['Hostname'] = df.groupby('IP')['Hostname'].transform(
-            #lambda x: x.fillna(method='ffill').fillna(method='bfill'))
-            lambda x: x.ffill().bfill())
+        # A hostname resolved in one scan applies to every row of the same IP.
+        df['Hostname'] = df.groupby('IP')['Hostname'].transform(lambda x: x.ffill().bfill())
         df['Hostname'] = df['Hostname'].apply(NmapParser.is_not_ip)
 
         return df

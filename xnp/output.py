@@ -1,21 +1,25 @@
 """Filtering and export of the parsed DataFrame (CSV / XLSX / JSON)."""
 
+import os
+
 import pandas as pd
 
 from xnp.config import load_config
+from xnp.errors import XnpError
 from xnp.logs import get_logger
 
 logger = get_logger(__name__)
 
+DEFAULT_MERGED_NAME = "merged_nmap_scan_data"
+
+
 def adjust_columns(worksheet, df):
+    """Widen each column to fit its longest value."""
     for i, col in enumerate(df.columns):
-        # find length of column i
         column_len = df[col].astype(str).str.len().max()
-        # Setting the length if the column header is larger
-        # than the max column value length
         column_len = max(column_len, len(col)) + 2
-        # set the column length
         worksheet.set_column(i, i, column_len)
+
 
 def header_format_style(workbook, config=None):
     config = config or load_config()
@@ -26,104 +30,121 @@ def header_format_style(workbook, config=None):
     header_format.set_center_across()
     return header_format
 
+
+def _ensure_parent_dir(filename):
+    parent = os.path.dirname(filename)
+    if parent and not os.path.isdir(parent):
+        try:
+            os.makedirs(parent, exist_ok=True)
+        except OSError as exc:
+            raise XnpError(f" |x| Error | Could not create {parent}: {exc}") from exc
+
+
 def df_to_xlsx(df, filename, config=None):
     config = config or load_config()
+    _ensure_parent_dir(filename)
     try:
-        # Create a Pandas Excel Writer using Xlsxwriter as the engine
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        # Converts the dataframe to a Xlsxwriter Excel Object
         df.to_excel(writer, sheet_name=config.sheet_name, index=False)
-        # Get the xlsxwriter workbook and worksheet objects
         workbook = writer.book
         worksheet = writer.sheets[config.sheet_name]
-        # Tab color
         worksheet.set_tab_color(config.header_color)
-        # Get the dimensions of the database
         (max_row, max_col) = df.shape
-        # Columns format
         adjust_columns(worksheet, df)
-        # Header format
         header_format = header_format_style(workbook, config)
-        # Table headers with custom format
-        table_headers = []
-        table_headers = [{'header': column, 'header_format': header_format} for column in df.columns.tolist()]
-        # Create table with custom format
+        table_headers = [{'header': column, 'header_format': header_format}
+                         for column in df.columns.tolist()]
         worksheet.add_table(0, 0, max_row, max_col - 1, {'name': 'NmapScanData',
                                                          'style': config.table_style,
-                                                         'columns': table_headers })
-        # Close XLSX file
+                                                         'columns': table_headers})
         writer.close()
         logger.info(f" |+| Output | xlsx | {filename}")
-    except Exception as e:
-        logger.error(f" |x| Error | {filename} file not created")
-        logger.error(e)
+    except (OSError, ValueError) as exc:
+        raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
+
 
 def df_to_csv(df, filename):
+    _ensure_parent_dir(filename)
     try:
         df.to_csv(filename, sep=';', encoding='utf-8', index=False)
         logger.info(f" |+| Output | csv | {filename}")
-    except Exception as e:
-        logger.error(f" |x| Error | {filename} file not created")
-        logger.error(e)
+    except (OSError, ValueError) as exc:
+        raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
+
 
 def df_to_json(df, filename):
+    _ensure_parent_dir(filename)
     try:
         df.to_json(filename, orient='records', lines=True)
         logger.info(f" |+| Output | json | {filename}")
-    except Exception as e:
-        logger.error(f" |x| Error | {filename} file not created")
-        logger.error(e)
+    except (OSError, ValueError) as exc:
+        raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
+
+
+WRITERS = {
+    "csv": df_to_csv,
+    "xlsx": df_to_xlsx,
+    "json": df_to_json,
+}
+
 
 def get_output_name(file_xml, output_name, merger, config=None):
-    config = config or load_config()
+    """Work out the base name (no extension) for the output files.
+
+    An explicit ``-oN`` always wins; it used to be silently dropped whenever
+    ``-f`` was given.  Deriving the name from the XML uses splitext so that a
+    path containing ``.xml`` in a *directory* component is not truncated.
+    """
+    if output_name:
+        return output_name
     if file_xml:
-        output_name = file_xml.split(config.nmap_file_extension)[0]
-
+        return os.path.splitext(file_xml)[0]
     if merger:
-        if not output_name:
-            output_name = "merged_nmap_scan_data"
+        return DEFAULT_MERGED_NAME
+    return None
 
 
+def write_dataframe(df, list_output_format, file_output_name=None, merger=None, file_xml=None,
+                    config=None):
+    if df is None or df.empty:
+        logger.warning(" |?| Warning | The file has no scan data, omitting export")
+        return
 
-    return output_name
-def write_dataframe(df, list_output_format, file_output_name=None, merger=None, file_xml=None):
-    if df.empty:
-        logger.warning(f" |?| Warning | The file has no scan data, omitting export")
-    else:
-        output_name = get_output_name(file_xml, file_output_name, merger)
+    output_name = get_output_name(file_xml, file_output_name, merger, config)
 
-        for output_format_type in list_output_format:
-            output_file_xml = f"{output_name}.{output_format_type}"
-            if output_format_type == "csv":
-                df_to_csv(df, output_file_xml)
-            elif output_format_type == "xlsx":
-                df_to_xlsx(df, output_file_xml)
-            elif output_format_type == "json":
-                df_to_json(df, output_file_xml)
+    for output_format_type in list_output_format:
+        writer = WRITERS.get(output_format_type)
+        if writer is None:
+            continue
+        writer(df, f"{output_name}.{output_format_type}")
 
-def export_single_xml(df, xml_file, list_output_format):
-    write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format)
 
-def export_multiple_xml(df, list_output_format, file_output_name, merger):
-    write_dataframe(df=df, list_output_format=list_output_format, file_output_name=file_output_name, merger=merger)
+def export_single_xml(df, xml_file, list_output_format, file_output_name=None, config=None):
+    write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format,
+                    file_output_name=file_output_name, config=config)
+
+
+def export_multiple_xml(df, list_output_format, file_output_name, merger, config=None):
+    write_dataframe(df=df, list_output_format=list_output_format,
+                    file_output_name=file_output_name, merger=merger, config=config)
+
 
 def df_output_filters(df, df_columns, only_open_ports):
-    # Columns to export
-    df = df[df_columns]
+    """Select the requested columns, optionally keep only open ports, and sort."""
+    if df is None or df.empty:
+        return df
+
+    missing = [c for c in df_columns if c not in df.columns]
+    if missing:
+        raise XnpError(f" |x| Error | Unknown output columns: {', '.join(missing)}")
+
+    df = df[df_columns].copy()
 
     if only_open_ports:
-        # Remove rows where port state is not "open"
         df = df.loc[df['State Port'] == 'open']
 
-    # Convert 'Port' to int for proper sorting
-    # Create a DataFrame copy
-    df_copy = df.copy()
+    # Ports must sort numerically, not as strings.  to_numeric keeps rows whose
+    # port is empty (hosts with no ports) instead of raising on them.
+    df['Port'] = pd.to_numeric(df['Port'], errors='coerce').astype('Int64')
 
-    # Modify DF copy
-    column_index = df_copy.columns.get_loc('Port')
-    df_copy['Port'] = df_copy['Port'].astype(int)
-
-    # Sort final dataframe by 'IP' and then 'Port'
-    df = df_copy.sort_values(by=['IP', 'Port'])
-
-    return df
+    return df.sort_values(by=['IP', 'Port'])

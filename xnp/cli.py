@@ -1,6 +1,7 @@
 """Command line entry point."""
 
 import argparse
+import os
 import sys
 
 from xnp import __version__, banner, update
@@ -54,14 +55,48 @@ def build_parser():
     parser.add_argument('--open',
                         help='Export only the ports with "open" value in "State Port"',
                         action="store_true")
+    parser.add_argument('--include-hostless',
+                        dest='include_hostless',
+                        action="store_true",
+                        help='Also emit a row for hosts with no ports (down or fully filtered)')
+    parser.add_argument('--no-validate',
+                        dest='validate',
+                        action="store_false",
+                        help='Skip DTD validation. Needed for nmap-compatible output from '
+                             'other scanners (masscan, naabu)')
+    parser.add_argument('--update',
+                        action="store_true",
+                        help='Update XNP to the latest release and exit')
     parser.add_argument('--version',
                         action='version',
                         version=f'%(prog)s {__version__}')
     return parser
 
 
+def validate_args(parser, args):
+    """Reject argument combinations that cannot do anything useful."""
+    if args.update:
+        return
+
+    if not args.file and not args.directory:
+        parser.error("nothing to do: pass an XML file with -f or a directory with -d")
+
+    if args.file and not os.path.isfile(args.file):
+        parser.error(f"file not found: {args.file}")
+
+    if args.directory and not os.path.isdir(args.directory):
+        parser.error(f"not a directory: {args.directory}")
+
+    for flag, name in ((args.merger, "-M/--merger"), (args.recursive, "-R/--recursive")):
+        if flag and not args.directory:
+            parser.error(f"{name} only makes sense together with -d/--directory")
+
+
 def parse_args(argv=None):
-    return build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    validate_args(parser, args)
+    return args
 
 
 def help():
@@ -69,62 +104,49 @@ def help():
 
 
 def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_output_name,
-                    merger, recursive, df_columns, only_open_ports, config=None):
+                    merger, recursive, df_columns, only_open_ports, config=None,
+                    validate=True, include_hostless=False):
     config = config or load_config()
 
-    ## Nmap XLM file
-    if single_xml:
-        # Create dataframe with nmap data
-        df = NmapParser(single_xml).parse_file()
-        if df is not None:
-            df = out.df_output_filters(df, df_columns, only_open_ports)
-            banner.print_output_files_info()
-            out.export_single_xml(df, single_xml, list_output_format)
-        else:
-            logger.warning(" |?| Warning | The file has no scan data, omitting export")
+    def export(df, xml_file=None):
+        df = out.df_output_filters(df, df_columns, only_open_ports)
+        out.export_single_xml(df, xml_file, list_output_format, file_output_name, config)
 
-    ## Directory with multiple nmap XML files
+    # Single nmap XML file
+    if single_xml:
+        df = NmapParser(single_xml, validate, include_hostless).parse_file()
+        if df is None:
+            logger.warning(" |?| Warning | The file has no scan data, omitting export")
+        else:
+            banner.print_output_files_info()
+            export(df, single_xml)
+
+    # Directory with multiple nmap XML files
     if folder_multiple_xml:
         try:
-
-            # Get XML file list to parse
-            ## Recursive
-            if recursive:
-                xml_files = func.get_dir_files_recursive(folder_multiple_xml, config)
-            else:
-                folder_files = func.get_dir_files(folder_multiple_xml)
-                xml_files = [folder_multiple_xml + i for i in folder_files
-                             if i.endswith(config.nmap_file_extension)]
-
-            # XML files not found in folder
-            if not xml_files:
-                raise NoInputFilesError(f" |-| XML files in {folder_multiple_xml} not found")
-
-            # Merge XML files
-            if merger:
-                # Create dataframe with nmap data merged
-                df = NmapParser.merge_df(xml_files)
-                if df is not None:
-                    banner.print_output_files_info()
-                    df = out.df_output_filters(df, df_columns, only_open_ports)
-                    out.export_multiple_xml(df, list_output_format, file_output_name, merger)
-                else:
-                    logger.warning(" |?| Warning | The file has no scan data, omitting export")
-            else:
-                for xml_file in xml_files:
-                    # Create dataframe with nmap data
-                    df = NmapParser(xml_file).parse_file()
-                    if df is not None:
-                        df = out.df_output_filters(df, df_columns, only_open_ports)
-                        out.export_single_xml(df, xml_file, list_output_format)
-                    else:
-                        logger.warning(" |?| Warning | The file has no scan data, omitting export")
-                    print("\n")
-
+            xml_files = func.find_xml_files(folder_multiple_xml, recursive, config)
         except FileNotFoundError:
-            logger.error(f" |-| File {folder_multiple_xml} not found")
+            raise XnpError(f" |-| File {folder_multiple_xml} not found") from None
         except NotADirectoryError:
-            logger.error(f" |-| Are you sure that {folder_multiple_xml} is a directory?")
+            raise XnpError(
+                f" |-| Are you sure that {folder_multiple_xml} is a directory?") from None
+
+        if not xml_files:
+            raise NoInputFilesError(f" |-| XML files in {folder_multiple_xml} not found")
+
+        if merger:
+            df = NmapParser.merge_df(xml_files, validate, include_hostless)
+            banner.print_output_files_info()
+            df = out.df_output_filters(df, df_columns, only_open_ports)
+            out.export_multiple_xml(df, list_output_format, file_output_name, merger, config)
+        else:
+            for xml_file in xml_files:
+                df = NmapParser(xml_file, validate, include_hostless).parse_file()
+                if df is None:
+                    logger.warning(" |?| Warning | The file has no scan data, omitting export")
+                else:
+                    export(df, xml_file)
+                print("\n")
 
 
 def main(argv=None):
@@ -135,19 +157,16 @@ def main(argv=None):
     try:
         config = load_config()
 
-        single_xml = args.file
-        folder_multiple_xml = func.add_slash_if_needed(args.directory) if args.directory else None
-        df_columns = config.columns_for(args.columns)
-
-        # Banner
         banner.main()
 
-        # Update tool
-        update.update_program()
+        if args.update:
+            return 0 if update.update_program() else 1
 
-        # Show arguments info
-        banner.print_arguments_info(single_xml=single_xml,
-                                    folder_multiple_xml=folder_multiple_xml,
+        update.check_for_updates()
+
+        df_columns = config.columns_for(args.columns)
+        banner.print_arguments_info(single_xml=args.file,
+                                    folder_multiple_xml=args.directory,
                                     list_output_format=args.outputformat,
                                     file_output_name=args.outputname,
                                     merger=args.merger,
@@ -155,17 +174,18 @@ def main(argv=None):
                                     df_columns=df_columns,
                                     only_open_ports=args.open)
 
-        # Show parsing info
         banner.print_progress_info()
-        parse_xml_files(single_xml=single_xml,
-                        folder_multiple_xml=folder_multiple_xml,
+        parse_xml_files(single_xml=args.file,
+                        folder_multiple_xml=args.directory,
                         list_output_format=args.outputformat,
                         file_output_name=args.outputname,
                         merger=args.merger,
                         recursive=args.recursive,
                         df_columns=df_columns,
                         only_open_ports=args.open,
-                        config=config)
+                        config=config,
+                        validate=args.validate,
+                        include_hostless=args.include_hostless)
 
         print("\n")
         return 0

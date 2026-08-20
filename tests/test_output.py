@@ -13,6 +13,7 @@ from xnp.output import (
     get_output_name,
     write_dataframe,
 )
+from xnp.errors import XnpError
 from xnp.parser import NmapParser
 
 pytestmark = pytest.mark.usefixtures("quiet_logs")
@@ -48,8 +49,30 @@ def test_rows_are_sorted_by_ip_and_numeric_port(xml):
     assert list(result["IP"]) == ["10.0.0.1"] * 3 + ["10.0.0.20", "10.0.0.3", "10.0.0.3"]
 
 
-def test_port_is_converted_to_int_for_sorting(df):
-    assert df_output_filters(df, DEFAULT_COLUMNS, False)["Port"].dtype == "int64"
+def test_port_is_converted_to_a_nullable_integer_for_sorting(df):
+    """Int64 (nullable) so that port-less rows survive instead of raising."""
+    assert df_output_filters(df, DEFAULT_COLUMNS, False)["Port"].dtype == "Int64"
+
+
+def test_rows_without_a_port_survive_filtering(xml):
+    source = NmapParser(xml("host_down"), include_hostless=True).parse_file()
+    result = df_output_filters(source, DEFAULT_COLUMNS, False)
+    assert len(result) == 2
+    assert result["Port"].isna().all()
+
+
+def test_an_empty_dataframe_passes_through_untouched():
+    empty = pd.DataFrame()
+    assert df_output_filters(empty, DEFAULT_COLUMNS, False) is empty
+
+
+def test_none_passes_through_untouched():
+    assert df_output_filters(None, DEFAULT_COLUMNS, False) is None
+
+
+def test_unknown_columns_raise(df):
+    with pytest.raises(XnpError, match="Unknown output columns"):
+        df_output_filters(df, ["IP", "Nope"], False)
 
 
 def test_filtering_does_not_mutate_the_input(df):
@@ -113,20 +136,35 @@ def test_write_dataframe_skips_an_empty_dataframe(tmp_path):
     assert not (tmp_path / "scan.csv").exists()
 
 
-# --- Bugs pinned here, fixed in the next commit -----------------------------
-
-def test_CURRENT_output_name_splits_on_the_first_xml_in_the_path():
-    """BUG: split('.xml') cuts at the first match anywhere in the path."""
-    assert get_output_name("/data/backup.xml.old/scan.xml", None, None) == "/data/backup"
-
-
-def test_CURRENT_output_name_is_ignored_for_a_single_file():
-    """BUG: `xnp -f scan.xml -oN informe` silently writes scan.csv."""
-    assert get_output_name("scan.xml", "informe", None) == "scan"
+def test_output_name_only_strips_the_real_extension():
+    """splitext, not split('.xml'): a .xml in a directory name must survive."""
+    assert get_output_name("/data/backup.xml.old/scan.xml", None, None) == \
+        "/data/backup.xml.old/scan"
 
 
-def test_CURRENT_a_write_failure_is_only_logged(df, tmp_path):
-    """BUG: writers swallow every exception, so the run still reports success."""
-    unwritable = tmp_path / "missing_dir" / "out.csv"
-    df_to_csv(df_output_filters(df, DEFAULT_COLUMNS, False), str(unwritable))
-    assert not unwritable.exists()
+def test_an_explicit_output_name_wins_over_the_xml_name():
+    """`xnp -f scan.xml -oN informe` used to silently write scan.csv."""
+    assert get_output_name("scan.xml", "informe", None) == "informe"
+
+
+def test_get_output_name_without_any_input_is_none():
+    assert get_output_name(None, None, None) is None
+
+
+def test_a_write_failure_raises_instead_of_being_swallowed(df, tmp_path, monkeypatch):
+    """A run that could not write its output must not report success."""
+    filtered = df_output_filters(df, DEFAULT_COLUMNS, False)
+    target = tmp_path / "out.csv"
+
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", boom)
+    with pytest.raises(XnpError, match="file not created"):
+        df_to_csv(filtered, str(target))
+
+
+def test_writers_create_the_output_directory(df, tmp_path):
+    target = tmp_path / "reports" / "nested" / "out.csv"
+    df_to_csv(df_output_filters(df, DEFAULT_COLUMNS, False), str(target))
+    assert target.is_file()

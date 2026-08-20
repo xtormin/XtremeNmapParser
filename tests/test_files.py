@@ -4,13 +4,12 @@ import os
 
 import pytest
 
-from xnp import files
-from xnp.config import load_config
+from xnp.files import find_xml_files
 
 
 @pytest.fixture
 def tree(tmp_path):
-    """A directory tree with XML at two levels plus some noise."""
+    """A directory tree with XML at two levels plus assorted noise."""
     (tmp_path / "top.xml").write_text("<x/>")
     (tmp_path / "notes.txt").write_text("ignore me")
     nested = tmp_path / "nested"
@@ -19,34 +18,51 @@ def tree(tmp_path):
     return tmp_path
 
 
-def test_get_dir_files_lists_the_top_level(tree):
-    assert set(files.get_dir_files(tree)) == {"top.xml", "notes.txt", "nested"}
+def names(paths):
+    return {os.path.basename(p) for p in paths}
 
 
-def test_recursive_search_finds_nested_xml_and_skips_other_files(tree):
-    found = files.get_dir_files_recursive(str(tree), load_config())
-    assert {os.path.basename(p) for p in found} == {"top.xml", "deep.xml"}
+def test_non_recursive_search_stays_at_the_top_level(tree):
+    assert names(find_xml_files(tree)) == {"top.xml"}
 
 
-def test_recursive_search_returns_empty_for_a_tree_without_xml(tmp_path):
+def test_recursive_search_descends_into_subdirectories(tree):
+    assert names(find_xml_files(tree, recursive=True)) == {"top.xml", "deep.xml"}
+
+
+def test_non_xml_files_are_ignored(tree):
+    assert "notes.txt" not in names(find_xml_files(tree, recursive=True))
+
+
+def test_results_are_sorted(tree):
+    (tree / "a.xml").write_text("<x/>")
+    found = find_xml_files(tree)
+    assert found == sorted(found)
+
+
+def test_a_tree_without_xml_returns_empty(tmp_path):
     (tmp_path / "readme.md").write_text("nothing here")
-    assert files.get_dir_files_recursive(str(tmp_path), load_config()) == []
+    assert find_xml_files(tmp_path, recursive=True) == []
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX separators")
-def test_add_slash_if_needed_is_idempotent():
-    assert files.add_slash_if_needed("nmap") == "nmap/"
-    assert files.add_slash_if_needed("nmap/") == "nmap/"
+def test_a_missing_directory_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        find_xml_files(tmp_path / "nope")
 
 
-# --- Bugs pinned here, fixed in the next commit -----------------------------
+def test_a_file_instead_of_a_directory_raises(tmp_path):
+    target = tmp_path / "scan.xml"
+    target.write_text("<x/>")
+    with pytest.raises(NotADirectoryError):
+        find_xml_files(target)
 
-def test_CURRENT_a_directory_named_like_an_xml_is_treated_as_a_file(tmp_path):
-    """BUG: the non-recursive branch filters by name only, never by file type.
 
-    A subdirectory called `something.xml` ends up in the list of files to parse.
-    """
+def test_a_directory_named_like_an_xml_is_not_treated_as_a_file(tmp_path):
+    """Matching on the name alone used to let `something.xml/` into the list."""
     (tmp_path / "trap.xml").mkdir()
-    listed = [n for n in files.get_dir_files(tmp_path) if n.endswith(".xml")]
-    assert listed == ["trap.xml"]
-    assert (tmp_path / "trap.xml").is_dir()
+    (tmp_path / "real.xml").write_text("<x/>")
+    assert names(find_xml_files(tmp_path)) == {"real.xml"}
+
+
+def test_the_directory_argument_needs_no_trailing_slash(tree):
+    assert find_xml_files(str(tree)) == find_xml_files(str(tree) + "/")

@@ -4,7 +4,7 @@ import os
 
 from lxml import etree
 
-from xnp.errors import XnpError
+from xnp.errors import InvalidNmapReport, NotAnNmapReport, XnpError
 from xnp.logs import get_logger
 
 logger = get_logger(__name__)
@@ -357,133 +357,92 @@ class NmapXMLReport:
             def __str__(self):
                 return f"Elem(key={self.key}, content={self.content})"
 
-    def __init__(self, xml_file):
+    #: Parser used for every nmap report.
+    #:
+    #: The flags spell out lxml's safe defaults instead of relying on them:
+    #: external entities are never expanded and the parser never touches the
+    #: network, so a hostile report cannot turn into a file read (XXE) or a
+    #: billion-laughs expansion.
+    PARSER = etree.XMLParser(
+        resolve_entities=False,
+        no_network=True,
+        huge_tree=False,
+        load_dtd=False,
+    )
 
+    DTD_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data', 'nmap.dtd')
+
+    #: How many DTD messages to quote when a report does not validate.
+    MAX_REPORTED_DTD_ERRORS = 5
+
+    def __init__(self, xml_file, validate=True):
+        """Parse ``xml_file`` into the object model.
+
+        Validation happens in three layers:
+
+        1. the hardened parser above rejects malformed input,
+        2. the root element must be ``<nmaprun>``,
+        3. the document is validated against the bundled ``nmap.dtd``.
+
+        Set ``validate=False`` to skip only the third layer, which is what
+        nmap-compatible output from other scanners (masscan, naabu) needs: the
+        DTD pins ``scanner="nmap"`` and enumerates a closed list of scan types.
+
+        Raises:
+            NotAnNmapReport: the root element is not ``nmaprun``.
+            InvalidNmapReport: the report does not validate against the DTD.
+            lxml.etree.XMLSyntaxError: the file is not well-formed XML.
+        """
         self.xml_file = xml_file
-        if NmapXMLReport.validateNmapDTD(self):
-            tree = etree.parse(self.xml_file)
-            root = tree.getroot()
 
-            self.nmaprun = [self.NmapRun(e) for e in root.findall('nmaprun')]
-            self.scaninfo = [self.ScanInfo(e) for e in root.findall('scaninfo')]
-            self.verbose = [self.Verbose(e) for e in root.findall('verbose')]
-            self.debugging = [self.Debugging(e) for e in root.findall('debugging')]
-            self.target = [self.Target(e) for e in root.findall('target')]
-            self.task_begins = [self.TaskBegin(e) for e in root.findall('taskbegin')]
-            self.task_progresses = [self.TaskProgress(e) for e in root.findall('taskprogress')]
-            self.task_ends = [self.TaskEnd(e) for e in root.findall('taskend')]
-            self.hosts = [self.Host(e) for e in root.findall('host')]
-            self.hosthints = [self.HostHint(e) for e in root.findall('hosthint')]
+        tree = etree.parse(xml_file, self.PARSER)
+        root = tree.getroot()
+
+        if root.tag != 'nmaprun':
+            raise NotAnNmapReport(
+                f" |x| Error | {xml_file} is not an nmap XML report "
+                f"(root element is <{root.tag}>, expected <nmaprun>)")
+
+        if validate:
+            self.validate_dtd(tree)
+
+        # The root element *is* nmaprun, so its attributes live on `root`.
+        self.nmaprun = self.NmapRun(root)
+        self.scaninfo = [self.ScanInfo(e) for e in root.findall('scaninfo')]
+        self.verbose = [self.Verbose(e) for e in root.findall('verbose')]
+        self.debugging = [self.Debugging(e) for e in root.findall('debugging')]
+        self.target = [self.Target(e) for e in root.findall('target')]
+        self.task_begins = [self.TaskBegin(e) for e in root.findall('taskbegin')]
+        self.task_progresses = [self.TaskProgress(e) for e in root.findall('taskprogress')]
+        self.task_ends = [self.TaskEnd(e) for e in root.findall('taskend')]
+        self.hosts = [self.Host(e) for e in root.findall('host')]
+        self.hosthints = [self.HostHint(e) for e in root.findall('hosthint')]
 
     def __str__(self):
-        return f"NmapXMLReport(\n{self.nmaprun}\n{self.scaninfo}\n{self.verbose}\n{self.debugging}\n{self.target}\n{self.task_begins}\n{self.task_progresses}\n{self.task_ends})"
+        return (f"NmapXMLReport(\n{self.nmaprun}\n{self.scaninfo}\n{self.verbose}\n"
+                f"{self.debugging}\n{self.target}\n{self.task_begins}\n"
+                f"{self.task_progresses}\n{self.task_ends})")
 
-    def validateNmapDTD(self):
+    @classmethod
+    def load_dtd(cls):
+        """Return the bundled nmap DTD."""
         try:
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            xml_dtd = os.path.join(dir_path, 'data', 'nmap.dtd')
-            xml_file = self.xml_file
-            xml_file = etree.parse(xml_file)
-
-            # Parse the DTD file
-            with open(xml_dtd, 'rb') as f:
-                dtd = etree.DTD(f)
-
-            # Validate the XML against the DTD
-            is_valid = dtd.validate(xml_file)
-
-            return is_valid
+            with open(cls.DTD_PATH, 'rb') as handle:
+                return etree.DTD(handle)
         except OSError as exc:
-            raise XnpError(f"Could not read the nmap DTD: {exc}") from exc
+            raise XnpError(f" |x| Error | Could not read the nmap DTD: {exc}") from exc
 
-# PARSER EXAMPLES
-"""
-nmap_report = NmapXMLReport('../../examples/Offsec/DC-4/nmap/tcp-1000-scripts.xml')
-print(nmap_report)
+    def validate_dtd(self, tree):
+        """Validate an already parsed tree, raising :class:`InvalidNmapReport`."""
+        dtd = self.load_dtd()
+        if dtd.validate(tree):
+            return True
 
-for nmaprun in nmap_report.nmaprun:
-    print(nmaprun)
-
-for scaninfo in nmap_report.scaninfo:
-    print(scaninfo)
-
-for verbose in nmap_report.verbose:
-    print(verbose)
-
-for debugging in nmap_report.debugging:
-    print(debugging)
-
-for target in nmap_report.target:
-    print(target)
-
-for task_begins in nmap_report.task_begins:
-    print(task_begins)
-
-for task_progresses in nmap_report.task_progresses:
-    print(task_progresses)
-
-for task_ends in nmap_report.task_ends:
-    print(task_ends)
-
-for host in nmap_report.hosts:
-    for status in host.status:
-        print(status)
-    for address in host.addresses:
-        print(address)
-
-    for hostnames in host.hostnames:
-        for hostname in hostnames.hostnames:
-            print(hostname)
-    for port in host.ports:
-        for state in port.state:
-            print(state)
-
-        for owner in port.owner:
-            print(owner)
-
-        for service in port.service:
-            print(service)
-
-        for script in port.script:
-            print(script)
-
-    for os in host.os:
-        print(os)
-        for portused in os.portused:
-            print(portused)
-
-        for osmatch in os.osmatch:
-            print(osmatch)
-
-            for osclass in osmatch.osclass:
-                print(osclass)
-
-                for cpe in osclass.cpe:
-                    print(cpe)
-
-        for osfingerprint in os.osfingerprint:
-            print(osfingerprint)
-
-    for distance in host.distance:
-        print(distance)
-
-    for uptime in host.uptime:
-        print(uptime)
-
-    for tcpsequence in host.tcpsequence:
-        print(tcpsequence)
-
-    for ipidsequence in host.ipidsequence:
-        print(ipidsequence)
-
-    for tcptssequence in host.tcptssequence:
-        print(tcptssequence)
-
-    for trace in host.trace:
-        print(trace)
-        for hops in trace.hops:
-            print(hops)
-
-for hosthints in nmap_report.hosthints:
-    print(hosthints)
-"""
+        errors = [str(e) for e in dtd.error_log.filter_from_errors()]
+        shown = errors[:self.MAX_REPORTED_DTD_ERRORS]
+        if len(errors) > len(shown):
+            shown.append(f"... and {len(errors) - len(shown)} more")
+        raise InvalidNmapReport(
+            f" |x| Error | {self.xml_file} does not validate against nmap.dtd. "
+            f"Use --no-validate to parse it anyway.\n   "
+            + "\n   ".join(shown))

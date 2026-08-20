@@ -3,6 +3,7 @@
 import pandas as pd
 import pytest
 
+from xnp.errors import InvalidNmapReport, NotAnNmapReport
 from xnp.parser import NmapParser
 
 pytestmark = pytest.mark.usefixtures("quiet_logs")
@@ -59,8 +60,12 @@ def test_report_without_hosts_returns_none(xml):
     assert NmapParser(xml("no_hosts")).parse_file() is None
 
 
-def test_malformed_xml_is_swallowed_and_returns_none(xml):
-    assert NmapParser(xml("malformed")).parse_file() is None
+def test_malformed_xml_raises_a_clear_error(xml):
+    """A truncated scan is an error, not a silent empty result."""
+    with pytest.raises(InvalidNmapReport) as excinfo:
+        NmapParser(xml("malformed")).parse_file()
+    assert "Could not parse" in str(excinfo.value)
+    assert excinfo.value.exit_code == 2
 
 
 def test_is_not_ip():
@@ -102,51 +107,85 @@ def test_parse_file_multiple_tolerates_a_file_with_no_data(xml):
     assert len(df) == 3
 
 
-# --- Bugs pinned here, fixed in the next commit -----------------------------
-
-def test_CURRENT_ipv6_hosts_lose_their_address(xml):
-    """BUG: only addrtype == 'ipv4' is read, so IPv6 hosts get an empty IP."""
+def test_ipv6_hosts_keep_their_address(xml):
     df = NmapParser(xml("ipv6_host")).parse_file()
     assert len(df) == 1
-    assert df.iloc[0]["IP"] is None
+    assert df.iloc[0]["IP"] == "2001:db8::1"
     assert df.iloc[0]["Hostname"] == "v6.lab.local"
 
 
-def test_CURRENT_hosts_without_ports_vanish_from_the_report(xml):
-    """BUG: rows are only emitted per port, so a down host is dropped silently.
+def test_ipv4_is_preferred_when_a_host_has_both(xml):
+    assert NmapParser._host_address(
+        _FakeHost([("ipv6", "2001:db8::1"), ("ipv4", "10.0.0.1")])) == "10.0.0.1"
 
-    host_down.xml holds two hosts: one down, one up with every port filtered.
-    Neither survives.
-    """
+
+def test_scripts_are_rendered_as_readable_lines(xml):
+    df = NmapParser(xml("with_scripts")).parse_file()
+    assert df.iloc[0]["Scripts"] == (
+        "http-title: Welcome\n"
+        "ssl-cert: Subject: commonName=tls.lab.local"
+    )
+
+
+def test_a_port_without_scripts_leaves_the_cell_empty(xml):
+    df = NmapParser(xml("single_host")).parse_file()
+    assert set(df["Scripts"]) == {None}
+
+
+# --- Hosts with no ports ----------------------------------------------------
+
+def test_hosts_without_ports_are_dropped_by_default(xml):
+    """Default behaviour is unchanged: only host/port rows are emitted."""
     assert NmapParser(xml("host_down")).parse_file() is None
 
 
-def test_CURRENT_scripts_column_holds_python_reprs(xml):
-    """BUG: the cell contains repr() of the Script object, not readable output."""
-    df = NmapParser(xml("with_scripts")).parse_file()
-    scripts = df.iloc[0]["Scripts"]
-    assert scripts == [
-        "Script(id=http-title, output=Welcome, content=None)",
-        "Script(id=ssl-cert, output=Subject: commonName=tls.lab.local, content=None)",
-    ]
+def test_include_hostless_emits_one_row_per_portless_host(xml):
+    df = NmapParser(xml("host_down"), include_hostless=True).parse_file()
+    assert len(df) == 2
+    assert list(df["IP"]) == ["10.0.0.4", "10.0.0.5"]
+    assert list(df["State"]) == ["down", "up"]
+    assert set(df["Port"]) == {None}
+    assert set(df["Protocol"]) == {None}
 
 
-def test_CURRENT_merging_only_empty_files_raises(xml):
-    """BUG: every file empty -> pd.concat gets an all-None list and blows up."""
-    with pytest.raises(ValueError, match="All objects passed were None"):
-        NmapParser.merge_df([xml("no_hosts")])
+def test_include_hostless_does_not_change_hosts_that_have_ports(xml):
+    with_flag = NmapParser(xml("single_host"), include_hostless=True).parse_file()
+    without = NmapParser(xml("single_host")).parse_file()
+    pd.testing.assert_frame_equal(with_flag, without)
 
 
-def test_CURRENT_merge_leaks_its_helper_column(xml):
-    """BUG: the RelevantDuplicate scratch column is left in the DataFrame.
+# --- Merging edge cases -----------------------------------------------------
 
-    It is hidden downstream only because df_output_filters selects columns.
-    """
+def test_merging_only_empty_files_returns_an_empty_frame(xml):
+    df = NmapParser.merge_df([xml("no_hosts")])
+    assert isinstance(df, pd.DataFrame)
+    assert df.empty
+    assert list(df.columns) == ALL_COLUMNS
+
+
+def test_merge_does_not_leak_its_helper_column(xml):
     df = NmapParser.merge_df([xml("dup_a"), xml("dup_b")])
-    assert "RelevantDuplicate" in df.columns
+    assert list(df.columns) == ALL_COLUMNS
 
 
-def test_CURRENT_a_non_nmap_xml_crashes_with_attributeerror(xml):
-    """BUG: DTD rejection surfaces as AttributeError, not a clear message."""
-    with pytest.raises(AttributeError):
+def test_a_non_nmap_xml_raises_a_clear_error(xml):
+    with pytest.raises(NotAnNmapReport):
         NmapParser(xml("not_nmap")).parse_file()
+
+
+def test_validation_can_be_skipped_for_masscan_output(xml):
+    df = NmapParser(xml("masscan"), validate=False).parse_file()
+    assert list(df["IP"]) == ["10.0.0.8"]
+    assert list(df["Port"]) == ["8080"]
+
+
+class _FakeHost:
+    """Minimal stand-in for an nmap <host> with the given addresses."""
+
+    class _Address:
+        def __init__(self, addrtype, addr):
+            self.addrtype = addrtype
+            self.addr = addr
+
+    def __init__(self, addresses):
+        self.addresses = [self._Address(t, a) for t, a in addresses]

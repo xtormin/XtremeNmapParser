@@ -1,4 +1,9 @@
-"""Self-update check against the GitHub releases API."""
+"""Version check against the GitHub releases API.
+
+XNP used to run ``git pull`` on its own checkout at every startup.  It now only
+reports that a new release exists and tells the user how to update; the update
+itself runs only when explicitly asked for with ``--update``.
+"""
 
 import os
 import subprocess
@@ -12,25 +17,50 @@ logger = get_logger(__name__)
 
 REPO_URL = "https://api.github.com/repos/xtormin/XtremeNmapParser/releases/latest"
 SKIP_ENV_VAR = "XNP_NO_UPDATE_CHECK"
+REQUEST_TIMEOUT = 5
 
 
 def get_latest_version():
     """Return the latest release tag, or ``None`` if it cannot be fetched."""
-    response = requests.get(REPO_URL)
+    try:
+        response = requests.get(REPO_URL, timeout=REQUEST_TIMEOUT)
+    except requests.RequestException as exc:
+        logger.debug(f"Version check failed: {exc}")
+        return None
+
     if response.status_code == 200:
-        return response.json()['tag_name']
-    logger.error("Could not fetch the latest version.")
+        return response.json().get('tag_name')
+
+    logger.debug(f"Version check returned HTTP {response.status_code}.")
     return None
 
 
-def update_program():
+def check_for_updates():
+    """Warn the user if a newer release exists. Never modifies the checkout."""
     if os.environ.get(SKIP_ENV_VAR):
-        return
-    try:
-        latest_version = get_latest_version()
-        if latest_version and latest_version != __version__:
-            logger.info(f" A new version is available: {latest_version}. Updating...")
-            # This assumes that the program was installed using git
-            subprocess.run(["git", "pull"])
-    except Exception:
-        pass
+        return None
+
+    latest_version = get_latest_version()
+    if latest_version and latest_version != __version__:
+        logger.warning(
+            f" |!| XNP {latest_version} is available (you have {__version__}) "
+            f"- update with: xnp --update")
+    return latest_version
+
+
+def update_program():
+    """Update the checkout with ``git pull``. Only called for ``--update``."""
+    latest_version = get_latest_version()
+    if latest_version and latest_version == __version__:
+        logger.info(f" |+| XNP {__version__} is already the latest version.")
+        return False
+
+    if latest_version:
+        logger.info(f" |+| Updating to {latest_version}...")
+    else:
+        logger.warning(" |?| Could not check the latest version; pulling anyway.")
+
+    # This assumes that the program was installed using git.
+    result = subprocess.run(["git", "pull"], cwd=os.path.dirname(os.path.dirname(
+        os.path.realpath(__file__))))
+    return result.returncode == 0
