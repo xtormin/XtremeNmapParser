@@ -22,6 +22,10 @@ class _XmlNode:
         fields = ", ".join(f"{name}={value}" for name, value in vars(self).items())
         return f"{type(self).__name__}({fields})"
 
+    # Several places interpolate *lists* of nodes, and formatting a list uses
+    # repr() on its items -- without this they rendered as object addresses.
+    __repr__ = __str__
+
 
 class NmapXMLReport:
     class NmapRun(_XmlNode):
@@ -132,15 +136,13 @@ class NmapXMLReport:
                     self.servicefp = element.get('servicefp')
                     self.cpe = [cpe.text for cpe in element.findall('cpe')]
 
-                class Cpe(_XmlNode):
-                    def __init__(self, element):
-                        self.cpe_data = element.text
-
             class Script(_XmlNode):
                 def __init__(self, element):
                     self.id = element.get('id')
                     self.output = element.get('output')
                     self.content = element.text
+                    # Structured NSE output: <script><table><elem>...
+                    self.tables = [NmapXMLReport.Table(t) for t in element.findall('table')]
 
         class Extraports(_XmlNode):
             def __init__(self, element):

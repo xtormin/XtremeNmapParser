@@ -131,3 +131,35 @@ def test_the_startup_version_check_is_skipped_in_tests(run_cli, tmp_path, fixtur
     scan = tmp_path / "scan.xml"
     shutil.copy(fixtures_dir / "single_host.xml", scan)
     assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 0
+
+
+def test_a_directory_that_disappears_mid_run_reports_cleanly(tmp_path):
+    """parse_xml_files translates filesystem errors into a clean XnpError."""
+    from xnp.cli import parse_xml_files
+    from xnp.errors import XnpError
+
+    with pytest.raises(XnpError, match="not found"):
+        parse_xml_files(single_xml=None, folder_multiple_xml=str(tmp_path / "gone") + "/",
+                        list_output_format=["csv"], file_output_name=None, merger=False,
+                        recursive=False, df_columns=["IP", "Port"], only_open_ports=False)
+
+
+def test_a_file_passed_where_a_directory_is_expected_reports_cleanly(tmp_path):
+    from xnp.cli import parse_xml_files
+    from xnp.errors import XnpError
+
+    scan = tmp_path / "scan.xml"
+    scan.write_text("<x/>")
+    with pytest.raises(XnpError, match="is a directory"):
+        parse_xml_files(single_xml=None, folder_multiple_xml=str(scan),
+                        list_output_format=["csv"], file_output_name=None, merger=False,
+                        recursive=False, df_columns=["IP", "Port"], only_open_ports=False)
+
+
+def test_a_directory_with_a_dataless_scan_skips_only_that_file(run_cli, tmp_path,
+                                                               fixtures_dir):
+    shutil.copy(fixtures_dir / "single_host.xml", tmp_path / "good.xml")
+    shutil.copy(fixtures_dir / "no_hosts.xml", tmp_path / "empty.xml")
+    assert run_cli(["-d", str(tmp_path) + "/", "-oF", "csv"], cwd=tmp_path) == 0
+    assert (tmp_path / "good.csv").is_file()
+    assert not (tmp_path / "empty.csv").exists()

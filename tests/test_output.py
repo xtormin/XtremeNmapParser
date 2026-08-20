@@ -168,3 +168,46 @@ def test_writers_create_the_output_directory(df, tmp_path):
     target = tmp_path / "reports" / "nested" / "out.csv"
     df_to_csv(df_output_filters(df, DEFAULT_COLUMNS, False), str(target))
     assert target.is_file()
+
+
+# --- Writer failure paths ---------------------------------------------------
+
+@pytest.mark.parametrize("writer_name,method,extension", [
+    ("df_to_json", "to_json", "json"),
+    ("df_to_xlsx", "to_excel", "xlsx"),
+])
+def test_every_writer_raises_on_failure(df, tmp_path, monkeypatch, writer_name,
+                                        method, extension):
+    import xnp.output as output_module
+
+    filtered = df_output_filters(df, DEFAULT_COLUMNS, False)
+
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(pd.DataFrame, method, boom)
+    with pytest.raises(XnpError, match="file not created"):
+        getattr(output_module, writer_name)(filtered, str(tmp_path / f"o.{extension}"))
+
+
+def test_an_unwritable_output_directory_raises(df, tmp_path, monkeypatch):
+    def boom(*args, **kwargs):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr("os.makedirs", boom)
+    with pytest.raises(XnpError, match="Could not create"):
+        df_to_csv(df_output_filters(df, DEFAULT_COLUMNS, False),
+                  str(tmp_path / "nested" / "out.csv"))
+
+
+def test_an_unknown_output_format_is_skipped(df, tmp_path):
+    """Unknown formats are ignored rather than crashing the whole run."""
+    filtered = df_output_filters(df, DEFAULT_COLUMNS, False)
+    write_dataframe(filtered, ["csv", "pdf"], file_xml=str(tmp_path / "scan.xml"))
+    assert (tmp_path / "scan.csv").is_file()
+    assert not (tmp_path / "scan.pdf").exists()
+
+
+def test_write_dataframe_skips_none(tmp_path):
+    write_dataframe(None, ["csv"], file_xml=str(tmp_path / "scan.xml"))
+    assert not (tmp_path / "scan.csv").exists()

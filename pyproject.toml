@@ -61,7 +61,9 @@ addopts = "-q"
 
 [tool.coverage.run]
 source = ["xnp"]
-omit = ["xnp/banner.py"]
+# banner.py is ASCII art; __main__.py is the `python -m xnp` guard, exercised
+# by a subprocess test that coverage cannot follow.
+omit = ["xnp/banner.py", "xnp/__main__.py"]
 
 [tool.coverage.report]
 show_missing = true

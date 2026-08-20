@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from xnp.errors import InvalidNmapReport, NotAnNmapReport
+from xnp.models import ScanData, empty_dataframe, to_dataframe
 from xnp.parser import NmapParser
 
 pytestmark = pytest.mark.usefixtures("quiet_logs")
@@ -189,3 +190,21 @@ class _FakeHost:
 
     def __init__(self, addresses):
         self.addresses = [self._Address(t, a) for t, a in addresses]
+
+
+def test_scan_data_round_trips_through_a_dict():
+    row = ScanData()
+    row.data["IP"] = "10.0.0.1"
+    assert row.to_dict()["IP"] == "10.0.0.1"
+    assert row.to_dict() is not row.data          # a copy, not the live mapping
+    assert row.to_list()[ALL_COLUMNS.index("IP")] == "10.0.0.1"
+
+
+def test_to_dataframe_of_nothing_is_none():
+    assert to_dataframe([]) is None
+
+
+def test_empty_dataframe_carries_the_columns():
+    df = empty_dataframe()
+    assert df.empty
+    assert list(df.columns) == ALL_COLUMNS

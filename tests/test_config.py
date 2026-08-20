@@ -96,3 +96,20 @@ def test_xnp_config_can_be_built_by_hand():
         columns_default=("IP", "Port"), columns_all=("IP", "Port", "Scripts"),
     )
     assert config.columns_for("all") == ["IP", "Port", "Scripts"]
+
+
+def test_a_broken_config_file_raises_a_config_error(tmp_path, monkeypatch):
+    broken = tmp_path / "broken.yaml"
+    broken.write_text("app:\n  name: 123\nnmap_file_extension: []\n")
+    reset_config()
+    with pytest.raises(XnpConfigError, match="Invalid configuration"):
+        load_config(broken)
+
+
+def test_a_local_config_directory_is_picked_up(tmp_path, monkeypatch):
+    local = tmp_path / "config"
+    local.mkdir()
+    (local / "config.yaml").write_text('app:\n  name: "Local override"\n')
+    monkeypatch.chdir(tmp_path)
+    reset_config()
+    assert load_config().app_name == "Local override"

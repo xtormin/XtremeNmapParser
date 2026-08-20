@@ -115,3 +115,9 @@ def test_update_program_does_nothing_when_already_up_to_date(spy, monkeypatch):
     monkeypatch.setattr(update, "get_latest_version", lambda: __version__)
     assert update.update_program() is False
     assert spy["run"] == []
+
+
+def test_update_pulls_anyway_when_the_version_cannot_be_checked(spy, monkeypatch):
+    monkeypatch.setattr(update, "get_latest_version", lambda: None)
+    assert update.update_program() is True
+    assert spy["run"] == [["git", "pull"]]

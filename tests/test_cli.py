@@ -113,3 +113,58 @@ def test_directory_only_flags_are_rejected_without_a_directory(capsys, flag):
 
 def test_a_valid_directory_is_accepted(tmp_path):
     assert parse_args(["-d", str(tmp_path), "-M", "-R"]).directory == str(tmp_path)
+
+
+# --- Runtime paths ----------------------------------------------------------
+
+def test_help_writes_to_stderr(capsys):
+    from xnp.cli import help as print_help
+
+    print_help()
+    assert "usage: xnp" in capsys.readouterr().err
+
+
+def test_verbose_turns_on_debug_logging(run_cli, tmp_path, fixtures_dir):
+    import logging
+    import shutil
+
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+    run_cli(["-f", str(scan), "-oF", "csv", "-v"], cwd=tmp_path)
+    assert logging.getLogger("xnp").level == logging.DEBUG
+
+
+def test_without_verbose_logging_stays_at_info(run_cli, tmp_path, fixtures_dir):
+    import logging
+    import shutil
+
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+    run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path)
+    assert logging.getLogger("xnp").level == logging.INFO
+
+
+def test_update_flag_delegates_to_the_update_module(run_cli, tmp_path, monkeypatch):
+    import xnp.update as update_module
+
+    calls = []
+    monkeypatch.setattr(update_module, "update_program", lambda: calls.append(True) or True)
+    assert run_cli(["--update"], cwd=tmp_path) == 0
+    assert calls == [True]
+
+
+def test_update_flag_reports_failure(run_cli, tmp_path, monkeypatch):
+    import xnp.update as update_module
+
+    monkeypatch.setattr(update_module, "update_program", lambda: False)
+    assert run_cli(["--update"], cwd=tmp_path) == 1
+
+
+def test_the_module_can_be_run_with_python_dash_m():
+    import subprocess
+    import sys
+
+    result = subprocess.run([sys.executable, "-m", "xnp", "--version"],
+                            capture_output=True, text=True)
+    assert result.returncode == 0
+    assert __version__ in result.stdout
