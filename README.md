@@ -8,6 +8,7 @@ Xtreme Nmap Parser (XNP) is a Python-based utility designed to parse XML files g
 * [💻 Install](#-install)
 * [🎓 Usage](#-usage)
 * [🛠️ Configuration](#-configuration)
+* [🧪 Development](#-development)
 * [💬 Change Log](#-change-log)
 * [📜 License](#-license)
 * [🎉 Let's Get Social!](#-lets-get-social-)
@@ -32,23 +33,98 @@ Xtreme Nmap Parser (XNP) is a Python-based utility designed to parse XML files g
 
 # 💻 Install
 
-The installation information can be found in the '[Install](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#install)' section of the wiki.
+```bash
+git clone https://github.com/xtormin/XtremeNmapParser.git
+cd XtremeNmapParser
+pip install .
+```
+
+This installs the `xnp` command, which works from any directory. `python3 xnp.py`
+still works from inside the repository, and `python -m xnp` works once installed.
+
+> Note for users of older versions: the code moved from `app/` to the `xnp/`
+> package, so the wiki's paths are out of date.
 
 # 🎓 Usage
-
-The usage information can be found in the '[Usage](https://github.com/xtormin/XtremeNmapParser/wiki/%5BEN%5D-Wiki#usage)' section of the wiki.
 
 My favorite example:
 
 ```
-python3 xnp.py -d nmap/ -M -R --open -C all
+xnp -d nmap/ -M -R --open -C all
 ```
+
+| Flag | What it does |
+| --- | --- |
+| `-f`, `--file` | Parse a single nmap XML file |
+| `-d`, `--directory` | Parse every XML file in a directory |
+| `-R`, `--recursive` | Descend into subdirectories (with `-d`) |
+| `-M`, `--merger` | Merge every scan into one report, keeping the most detailed row per IP/port |
+| `-oF`, `--outputformat` | Output formats: `csv`, `xlsx`, `json` (default: all three) |
+| `-oN`, `--outputname` | Output file name |
+| `-C`, `--columns` | `default` or `all` (adds the `Scripts` column) |
+| `--open` | Export only ports whose state is `open` |
+| `--include-hostless` | Also emit a row for hosts with no ports (down, or fully filtered). Off by default, so these hosts are dropped unless you ask for them |
+| `--no-validate` | Skip DTD validation (see below) |
+| `--update` | Update XNP to the latest release |
+| `-v`, `--verbose` | Debug logging |
+
+### Input validation
+
+XNP checks its input in three layers:
+
+1. The XML parser never expands external entities and never touches the network.
+2. The root element must be `<nmaprun>`, otherwise you get a clear error and exit
+   code `2` instead of a traceback.
+3. The report is validated against the bundled `nmap.dtd`.
+
+Layer 3 is strict on purpose, but the bundled DTD pins `scanner="nmap"` and
+enumerates a closed list of scan types. Use `--no-validate` for nmap-compatible
+output produced by other tools:
+
+```
+xnp -f masscan.xml --no-validate
+```
+
+Exit codes: `0` success, `1` error, `2` invalid or non-nmap XML, `3` no input
+files found.
 
 # 🛠️ Configuration
 
-You can change the output formats and other settings through the [config.yaml](config%2Fconfig.yaml)  file.
+Settings live in [config.yaml](config%2Fconfig.yaml). XNP layers configuration
+sources, from lowest to highest precedence:
+
+1. the copy bundled with the package,
+2. `./config/config.yaml`, if it exists,
+3. the file named by the `$XNP_CONFIG` environment variable.
+
+Set `XNP_NO_UPDATE_CHECK=1` to skip the startup version check.
+
+# 🧪 Development
+
+```bash
+pip install -e ".[dev]"
+pytest --cov=xnp --cov-report=term-missing
+ruff check xnp tests xnp.py
+```
 
 # 💬 Change Log
+- **XNP v1.1.0**
+  - XNP is now an installable package (`pip install .`) with an `xnp` command, and
+    runs from any directory. Previously the configuration was read from a relative
+    path, so it only worked from the repository root.
+  - Input validation in three layers: hardened XML parser, `<nmaprun>` root check,
+    and DTD validation with a `--no-validate` escape hatch for nmap-compatible
+    output from other scanners. Invalid input now exits cleanly instead of raising
+    an `AttributeError`.
+  - The startup auto-update no longer runs `git pull` on its own. It reports that a
+    new version exists; `xnp --update` performs the update.
+  - Fixes: IPv6 hosts kept their address empty; the `Scripts` column held Python
+    object reprs; `-oN` was ignored together with `-f`; output names were truncated
+    when the path contained `.xml`; a failed write still reported success; merging
+    only empty scans crashed.
+  - New `--include-hostless` flag: emit a row for hosts with no ports, which were
+    silently dropped before.
+  - Test suite (163 tests, 99% coverage) and CI across Python 3.9-3.13.
 - **24/06/2023** - XNP v1.0.5
   - Updated column argument format. It now accepts "default" and "all" options. Using "default" will select a predefined set of columns, while "all" will select all available columns. The columns for each case are defined in "config.yaml".
 - **24/06/2023** - XNP v1.0.4
@@ -67,7 +143,6 @@ You can change the output formats and other settings through the [config.yaml](c
 
 # TO DO
 - [ ] Output file with xml not parsed.
-- 
 
 # 📜 License
 

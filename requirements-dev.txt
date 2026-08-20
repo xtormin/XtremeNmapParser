@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest>=7.4
+pytest-cov>=4.1
+ruff>=0.5
+# Only used by the tests, to read back the .xlsx files XNP writes with xlsxwriter.
+openpyxl>=3.1

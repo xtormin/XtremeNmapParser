@@ -1,9 +1,9 @@
-pandas
-jinja2
-openpyxl
-confuse
-xlsxwriter
-termcolor
-coloredlogs
-lxml
-requests
+# Runtime dependencies. The canonical list lives in pyproject.toml; this file
+# is kept for `pip install -r requirements.txt` workflows.
+pandas>=2.0,<3
+lxml>=4.9
+confuse>=2.0
+xlsxwriter>=3.0
+termcolor>=2.0
+coloredlogs>=15.0
+requests>=2.28
