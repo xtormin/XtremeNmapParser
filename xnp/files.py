@@ -1,21 +1,18 @@
+"""Filesystem helpers for locating nmap XML files."""
+
 import os
-import confuse
 
-# LOAD CONFIG FROM YAML FILE
-config = confuse.Configuration('XNP', __name__)
-config.set_file('config/config.yaml')
-
-APPNAME = config['app']['name'].get()
-NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
+from xnp.config import load_config
 
 def get_dir_files(dir):
     return os.listdir(dir)
 
-def get_dir_files_recursive(folder):
+def get_dir_files_recursive(folder, config=None):
+    config = config or load_config()
     xml_files = []
     for root, dirs, files in os.walk(folder):
         for file in files:
-            if file.endswith(NMAP_FILE_EXTENSION):
+            if file.endswith(config.nmap_file_extension):
                 xml_files.append(os.path.join(root, file))
     return xml_files
 

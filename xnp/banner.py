@@ -1,11 +1,10 @@
-import confuse
+"""Console banners."""
+
 from termcolor import colored
 
-# LOAD CONFIG FROM YAML FILE
-config = confuse.Configuration('XNP', __name__)
-config.set_file('config/config.yaml')
+from xnp import __version__
 
-APPVER = config['app']['version'].get()
+
 def main():
     BANNER = f"""                                          
                     _____   ______        _____   
@@ -22,7 +21,7 @@ def main():
       '        '         '       '      '         
                                                
     Github: https://github.com/xtormin/XtremeNmapParser
-    Version: {APPVER}
+    Version: {__version__}
     By: @xtormin
     
     HAPPY HACKING! 8)

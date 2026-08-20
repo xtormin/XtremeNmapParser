@@ -1,19 +1,11 @@
-import confuse
+"""Filtering and export of the parsed DataFrame (CSV / XLSX / JSON)."""
+
 import pandas as pd
-from app.utils.logs import CustomLogger
 
-# Logging configuration
-logger = CustomLogger('test')
+from xnp.config import load_config
+from xnp.logs import get_logger
 
-# LOAD CONFIG FROM YAML FILE
-config = confuse.Configuration('XNP', __name__)
-config.set_file('config/config.yaml')
-
-NMAP_FILE_EXTENSION = config['nmap_file_extension'].get()
-SHEET_NAME = config['xlsx']['sheet']['name'].get()
-HEADERS_COLOR = config['xlsx']['header']['color'].get()
-HEADERS_TEXT_COLOR = config['xlsx']['header']['text']['color'].get()
-TABLE_STYLE = config['xlsx']['table']['style'].get()
+logger = get_logger(__name__)
 
 def adjust_columns(worksheet, df):
     for i, col in enumerate(df.columns):
@@ -25,37 +17,39 @@ def adjust_columns(worksheet, df):
         # set the column length
         worksheet.set_column(i, i, column_len)
 
-def header_format_style(workbook):
+def header_format_style(workbook, config=None):
+    config = config or load_config()
     header_format = workbook.add_format()
-    header_format.set_bg_color(HEADERS_COLOR)
+    header_format.set_bg_color(config.header_color)
     header_format.set_bold()
-    header_format.set_font_color(HEADERS_TEXT_COLOR)
+    header_format.set_font_color(config.header_text_color)
     header_format.set_center_across()
     return header_format
 
-def df_to_xlsx(df, filename):
+def df_to_xlsx(df, filename, config=None):
+    config = config or load_config()
     try:
         # Create a Pandas Excel Writer using Xlsxwriter as the engine
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         # Converts the dataframe to a Xlsxwriter Excel Object
-        df.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+        df.to_excel(writer, sheet_name=config.sheet_name, index=False)
         # Get the xlsxwriter workbook and worksheet objects
         workbook = writer.book
-        worksheet = writer.sheets[SHEET_NAME]
+        worksheet = writer.sheets[config.sheet_name]
         # Tab color
-        worksheet.set_tab_color(HEADERS_COLOR)
+        worksheet.set_tab_color(config.header_color)
         # Get the dimensions of the database
         (max_row, max_col) = df.shape
         # Columns format
         adjust_columns(worksheet, df)
         # Header format
-        header_format = header_format_style(workbook)
+        header_format = header_format_style(workbook, config)
         # Table headers with custom format
         table_headers = []
         table_headers = [{'header': column, 'header_format': header_format} for column in df.columns.tolist()]
         # Create table with custom format
         worksheet.add_table(0, 0, max_row, max_col - 1, {'name': 'NmapScanData',
-                                                         'style': TABLE_STYLE,
+                                                         'style': config.table_style,
                                                          'columns': table_headers })
         # Close XLSX file
         writer.close()
@@ -80,9 +74,10 @@ def df_to_json(df, filename):
         logger.error(f" |x| Error | {filename} file not created")
         logger.error(e)
 
-def get_output_name(file_xml, output_name, merger):
+def get_output_name(file_xml, output_name, merger, config=None):
+    config = config or load_config()
     if file_xml:
-        output_name = file_xml.split(NMAP_FILE_EXTENSION)[0]
+        output_name = file_xml.split(config.nmap_file_extension)[0]
 
     if merger:
         if not output_name:

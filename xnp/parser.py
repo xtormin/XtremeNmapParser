@@ -1,13 +1,15 @@
-import confuse
+"""Turn nmap XML reports into pandas DataFrames."""
+
 import ipaddress
+
 import pandas as pd
 from lxml import etree
-from app.utils.logs import CustomLogger
-from app.modules.NmapXMLReport import NmapXMLReport
-from app.models.ScanData import ScanData
 
-# Logging configuration
-logger = CustomLogger('test')
+from xnp.logs import get_logger
+from xnp.models import ScanData, to_dataframe
+from xnp.xml_report import NmapXMLReport
+
+logger = get_logger(__name__)
 
 class NmapParser:
     def __init__(self, xml_file=None):
@@ -43,7 +45,7 @@ class NmapParser:
                         dataframe.data["Extrainfo"] = service.extrainfo
                     all_rows_dataframe.append(dataframe)
 
-            df = ScanData.to_dataframe(all_rows_dataframe)
+            df = to_dataframe(all_rows_dataframe)
             logger.info(f" |+| {self.xml_file} parsed successfully  ")
             return df
 

@@ -133,3 +133,5 @@ examples
 .DS_Store
 .idea
 merged_nmap_scan_data.*
+# Virtualenv local de desarrollo
+.venv/

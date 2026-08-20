@@ -1,6 +1,11 @@
 #!/usr/bin/python3
-from app.app import run
+"""Legacy launcher kept for backwards compatibility.
 
-# Run app/app.py
+Prefer the installed ``xnp`` command or ``python -m xnp``.
+"""
+import sys
+
+from xnp.cli import main
+
 if __name__ == "__main__":
-    run()
+    sys.exit(main())

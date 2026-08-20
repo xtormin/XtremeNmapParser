@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xtreme-nmap-parser"
+description = "Parse nmap XML reports into CSV / XLSX / JSON"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "xtormin" }]
+requires-python = ">=3.9"
+dynamic = ["version"]
+keywords = ["nmap", "pentest", "parser", "xml", "security"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+dependencies = [
+    "pandas>=2.0,<3",
+    "lxml>=4.9",
+    "confuse>=2.0",
+    "xlsxwriter>=3.0",
+    "termcolor>=2.0",
+    "coloredlogs>=15.0",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/xtormin/XtremeNmapParser"
+Issues = "https://github.com/xtormin/XtremeNmapParser/issues"
+
+[project.scripts]
+xnp = "xnp.cli:main"
+
+[tool.setuptools]
+# Explicit list: the repo also holds a legacy xnp.py launcher at the root that
+# must not be picked up as a top-level module.
+packages = ["xnp"]
+
+[tool.setuptools.dynamic]
+version = { attr = "xnp.__init__.__version__" }
+
+[tool.setuptools.package-data]
+xnp = ["data/*.dtd", "data/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["xnp"]
+omit = ["xnp/banner.py"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.ruff]
+target-version = "py39"
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

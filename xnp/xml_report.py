@@ -1,9 +1,13 @@
-import os
-from lxml import etree
-from app.utils.logs import CustomLogger
+"""Object model mapping the nmap XML schema (see ``data/nmap.dtd``)."""
 
-# Logging configuration
-logger = CustomLogger('test')
+import os
+
+from lxml import etree
+
+from xnp.errors import XnpError
+from xnp.logs import get_logger
+
+logger = get_logger(__name__)
 
 class NmapXMLReport:
     class NmapRun:
@@ -389,9 +393,8 @@ class NmapXMLReport:
             is_valid = dtd.validate(xml_file)
 
             return is_valid
-        except OSError as OE:
-            logger.error(OE)
-            exit(1)
+        except OSError as exc:
+            raise XnpError(f"Could not read the nmap DTD: {exc}") from exc
 
 # PARSER EXAMPLES
 """
