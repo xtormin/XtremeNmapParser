@@ -8,6 +8,7 @@ self-contained interactive HTML report.
   * [💥 Key Benefits](#-key-benefits)
 * [💻 Install](#-install)
 * [🎓 Usage](#-usage)
+* [🧰 Example scans](#-example-scans)
 * [📊 HTML report](#-html-report)
 * [🛠️ Configuration](#-configuration)
 * [🧪 Development](#-development)
@@ -96,6 +97,21 @@ end of the run, and if *nothing* in the directory parsed, that is still an error
 
 Exit codes: `0` success, `1` error, `2` invalid or non-nmap XML, `3` no input
 files found.
+
+# 🧰 Example scans
+
+[`examples/`](examples) holds synthetic nmap output so you can try XNP without
+running a scan first — an internal LAN across two subnets, a DMZ web tier, a
+Windows domain segment, one host scanned with `-A -p-`, and nmap-compatible
+output from masscan. Every address is RFC 1918 and nothing refers to a real
+host.
+
+```bash
+xnp -f examples/single-host-deep.xml -oF html && open examples/single-host-deep.html
+```
+
+[examples/README.md](examples/README.md) says what each file is for and lists a
+few more commands worth trying. `scripts/generate_examples.py` rebuilds the set.
 
 # 📊 HTML report
 
@@ -278,6 +294,8 @@ ruff check xnp tests xnp.py
   - A directory run no longer stops at the first file that fails validation: it
     reports the file, skips it and carries on, then names everything it skipped.
     A single named file (`-f`) still fails the run.
+  - New `examples/` directory with sample scans, and `scripts/generate_examples.py`
+    to rebuild them.
   - IBM Plex Sans/Mono (SIL OFL) are vendored and inlined, so the report renders
     with its intended type on a machine that has never seen it and never reaches
     the network.

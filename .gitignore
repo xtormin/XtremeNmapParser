@@ -129,9 +129,16 @@ dmypy.json
 .pyre/
 
 # Exclude
-examples
 .DS_Store
 .idea
 merged_nmap_scan_data.*
 # Virtualenv local de desarrollo
 .venv/
+
+# examples/ now ships committed sample scans (see examples/README.md), so the
+# directory itself is tracked -- only the reports produced from it are ignored.
+# Keep real engagement data somewhere else.
+examples/**/*.html
+examples/**/*.csv
+examples/**/*.xlsx
+examples/**/*.json

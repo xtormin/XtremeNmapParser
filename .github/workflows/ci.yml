@@ -26,7 +26,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check xnp tests xnp.py
+        run: ruff check xnp tests scripts xnp.py
 
       - name: Test
         # No test may reach the network; the startup version check is disabled.

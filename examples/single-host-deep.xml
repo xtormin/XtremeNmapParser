@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- Example scan shipped with Xtreme Nmap Parser. Synthetic data, private
+     addresses only: nothing here refers to a real host. -->
+<nmaprun scanner="nmap" args="nmap -A -p- -oX single-host-deep.xml 192.168.56.101" start="1725000000" startstr="Fri Sep  5 09:20:00 2026" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="65535" services="1-65535"/>
+<verbose level="1"/>
+<debugging level="0"/>
+<host starttime="1725000000" endtime="1725000480"><status state="up" reason="echo-reply" reason_ttl="63"/><address addr="192.168.56.101" addrtype="ipv4"/><address addr="08:00:27:AB:CD:EF" addrtype="mac" vendor="Oracle VirtualBox virtual NIC"/><hostnames><hostname name="jump.lab.local" type="PTR"/></hostnames><ports><extraports state="closed" count="991"><extrareasons reason="reset" count="991"/></extraports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="ssh" method="probed" conf="10" product="OpenSSH" version="8.9p1 Ubuntu 3ubuntu0.4" extrainfo="Ubuntu Linux; protocol 2.0" ostype="Linux"><cpe>cpe:/a:openbsd:openssh:8.9p1</cpe></service><script id="ssh-hostkey" output="2048 SHA256:9aB7xY2ZqLmN0pQrStUvWxYz1234567890abcdefg (RSA)
+256 SHA256:kLmNoPqRsTuVwXyZ0123456789abcdefghijklmn (ED25519)"/><script id="vulners" output="cpe:/a:openbsd:openssh:8.9p1:
+  CVE-2023-38408  9.8  https://vulners.com/cve/CVE-2023-38408"/></port><port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="http" method="probed" conf="10" product="Apache httpd" version="2.4.52" extrainfo="(Ubuntu)"></service><script id="http-methods" output="Supported Methods: GET HEAD POST OPTIONS"/><script id="http-robots.txt" output="2 disallowed entries
+/admin
+/backup"/></port><port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="ssl/http" method="probed" conf="10" product="Apache httpd" version="2.4.52" tunnel="ssl"></service><script id="ssl-cert" output="Subject: commonName=jump.lab.local
+Issuer: commonName=Lab CA
+Not valid after:  2026-11-30T23:59:59"/></port><port protocol="tcp" portid="3000"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="http" method="probed" conf="10" product="Node.js Express framework"></service></port><port protocol="tcp" portid="5432"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="postgresql" method="probed" conf="10" product="PostgreSQL DB" version="14.9"></service></port><port protocol="tcp" portid="8000"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="http" method="probed" conf="10" product="SimpleHTTPServer" version="0.6" extrainfo="Python 3.10.12"></service></port><port protocol="tcp" portid="111"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="rpcbind" method="probed" conf="10" product="2-4" version="RPC #100000"></service></port><port protocol="tcp" portid="631"><state state="closed" reason="syn-ack" reason_ttl="63"/><service name="ipp" method="probed" conf="10"></service></port><port protocol="tcp" portid="5000"><state state="filtered" reason="syn-ack" reason_ttl="63"/><service name="upnp" method="probed" conf="10"></service></port></ports><os><portused state="open" proto="tcp" portid="22"/><osmatch name="Ubuntu 22.04 (Linux 5.15 - 5.19)" accuracy="98" line="1"><osclass vendor="Linux" osgen="5.X" type="general purpose" accuracy="98" osfamily="Linux"><cpe>cpe:/o:linux:linux</cpe></osclass></osmatch></os><distance value="1"/><uptime seconds="864000" lastboot="Tue Aug 26 09:14:02 2026"/><trace proto="tcp" port="443"><hop ttl="1" rtt="0.42" ipaddr="192.168.56.1" host="gateway.lab.local"/><hop ttl="2" rtt="0.51" ipaddr="192.168.56.101" host="jump.lab.local"/></trace></host>
+<runstats>
+<finished time="1725000900" timestr="Fri Sep  5 09:35:00 2026" elapsed="900.00" exit="success"/>
+<hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- Example scan shipped with Xtreme Nmap Parser. Synthetic data, private
+     addresses only: nothing here refers to a real host. -->
+<nmaprun scanner="masscan" args="masscan -p22,80,443,8080 10.40.0.0/24 -oX masscan.xml" start="1725000000" startstr="Fri Sep  5 09:20:00 2026" version="1.3.2" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<verbose level="1"/>
+<debugging level="0"/>
+<host starttime="1725000000" endtime="1725000480"><status state="up" reason="echo-reply" reason_ttl="63"/><address addr="10.40.0.7" addrtype="ipv4"/><hostnames/><ports><extraports state="closed" count="0"><extrareasons reason="reset" count="0"/></extraports><port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="63"/></port></ports></host>
+<host starttime="1725000000" endtime="1725000480"><status state="up" reason="echo-reply" reason_ttl="63"/><address addr="10.40.0.19" addrtype="ipv4"/><hostnames/><ports><extraports state="closed" count="0"><extrareasons reason="reset" count="0"/></extraports><port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="63"/></port><port protocol="tcp" portid="8080"><state state="open" reason="syn-ack" reason_ttl="63"/></port></ports></host>
+<host starttime="1725000000" endtime="1725000480"><status state="up" reason="echo-reply" reason_ttl="63"/><address addr="10.40.0.23" addrtype="ipv4"/><hostnames/><ports><extraports state="closed" count="0"><extrareasons reason="reset" count="0"/></extraports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="63"/></port></ports></host>
+<runstats>
+<finished time="1725000900" timestr="Fri Sep  5 09:35:00 2026" elapsed="900.00" exit="success"/>
+<hosts up="3" down="251" total="254"/>
+</runstats>
+</nmaprun>
