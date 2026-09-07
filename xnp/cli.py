@@ -32,11 +32,14 @@ def build_parser() -> argparse.ArgumentParser:
                         nargs='?',
                         type=str)
     parser.add_argument('-oF', '--outputformat',
-                        choices=['csv', 'xlsx', 'json'],
-                        help='Output file format (csv, xlsx, json). Ej: xnp -f nmapfile.xml -oF csv xlsx',
+                        # Derived from the writer registry so the two can never
+                        # drift apart when a format is added.
+                        choices=sorted(out.WRITERS),
+                        help='Output file format (%(choices)s). '
+                             'Ej: xnp -f nmapfile.xml -oF csv html',
                         nargs='+',
                         type=str,
-                        default=['csv', 'xlsx', 'json'])
+                        default=sorted(out.WRITERS))
     parser.add_argument('-oN', '--outputname',
                         help='Output file name.',
                         nargs='?',
@@ -110,18 +113,25 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
                     validate=True, include_hostless=False):
     config = config or load_config()
 
-    def export(df, xml_file=None):
+    def export(df, xml_file=None, context=None):
         df = out.df_output_filters(df, df_columns, only_open_ports)
-        out.export_single_xml(df, xml_file, list_output_format, file_output_name, config)
+        out.export_single_xml(df, xml_file, list_output_format, file_output_name, config,
+                              context=context)
+
+    def html_context(reports, sources, merge=False):
+        """Everything the HTML report needs that the DataFrame cannot carry."""
+        return {"reports": reports, "sources": sources, "merge": merge,
+                "only_open": only_open_ports}
 
     # Single nmap XML file
     if single_xml:
-        df = NmapParser(single_xml, validate, include_hostless).parse_file()
+        parser = NmapParser(single_xml, validate, include_hostless)
+        df = parser.parse_file()
         if df is None:
             logger.warning(" |?| Warning | The file has no scan data, omitting export")
         else:
             banner.print_output_files_info()
-            export(df, single_xml)
+            export(df, single_xml, html_context([parser.report], [single_xml]))
 
     # Directory with multiple nmap XML files
     if folder_multiple_xml:
@@ -137,17 +147,19 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
             raise NoInputFilesError(f" |-| XML files in {folder_multiple_xml} not found")
 
         if merger:
-            df = NmapParser.merge_df(xml_files, validate, include_hostless)
+            df, reports = NmapParser.merge_all(xml_files, validate, include_hostless)
             banner.print_output_files_info()
             df = out.df_output_filters(df, df_columns, only_open_ports)
-            out.export_multiple_xml(df, list_output_format, file_output_name, merger, config)
+            out.export_multiple_xml(df, list_output_format, file_output_name, merger, config,
+                                    context=html_context(reports, xml_files, merge=True))
         else:
             for xml_file in xml_files:
-                df = NmapParser(xml_file, validate, include_hostless).parse_file()
+                parser = NmapParser(xml_file, validate, include_hostless)
+                df = parser.parse_file()
                 if df is None:
                     logger.warning(" |?| Warning | The file has no scan data, omitting export")
                 else:
-                    export(df, xml_file)
+                    export(df, xml_file, html_context([parser.report], [xml_file]))
                 print("\n")
 
 

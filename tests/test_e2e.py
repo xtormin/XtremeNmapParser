@@ -1,5 +1,7 @@
 """End to end runs through xnp.cli.main."""
 
+import json
+import re
 import shutil
 
 import pandas as pd
@@ -23,7 +25,7 @@ def test_single_file_writes_every_format_next_to_the_xml(run_cli, tmp_path, fixt
     scan = tmp_path / "scan.xml"
     shutil.copy(fixtures_dir / "single_host.xml", scan)
     assert run_cli(["-f", str(scan)], cwd=tmp_path) == 0
-    for extension in ("csv", "xlsx", "json"):
+    for extension in ("csv", "xlsx", "json", "html"):
         assert (tmp_path / f"scan.{extension}").is_file()
 
 
@@ -163,3 +165,57 @@ def test_a_directory_with_a_dataless_scan_skips_only_that_file(run_cli, tmp_path
     assert run_cli(["-d", str(tmp_path) + "/", "-oF", "csv"], cwd=tmp_path) == 0
     assert (tmp_path / "good.csv").is_file()
     assert not (tmp_path / "empty.csv").exists()
+
+
+# --- HTML report end to end -------------------------------------------------
+
+def _payload(path):
+    """Read back the JSON the report embeds for the browser."""
+    match = re.search(r'<script id="xnp-data" type="application/json">(.*?)</script>',
+                      path.read_text(encoding="utf-8"), re.DOTALL)
+    assert match
+    return json.loads(match.group(1))
+
+
+def test_the_html_report_carries_scan_metadata_and_os(run_cli, tmp_path, fixtures_dir):
+    """The whole point of the format: more than the eleven flat columns."""
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "full_scan.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "html"], cwd=tmp_path) == 0
+
+    payload = _payload(tmp_path / "scan.html")
+    assert payload["scans"][0]["args"], "the nmap command line"
+    assert any(host["os"]["matches"] for host in payload["hosts"]), "OS detection"
+
+
+def test_merged_html_report_is_written_once(run_cli, scans):
+    assert run_cli(["-d", str(scans) + "/", "-M", "-R", "-oF", "html"], cwd=scans) == 0
+    merged = scans / "merged_nmap_scan_data.html"
+    assert merged.is_file()
+
+    payload = _payload(merged)
+    ips = [host["ip"] for host in payload["hosts"]]
+    assert len(ips) == len(set(ips)), "merging deduplicates hosts in the report too"
+    assert len(payload["scans"]) > 1, "every source scan is listed"
+
+
+def test_open_only_reaches_the_html_report(run_cli, tmp_path, fixtures_dir):
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "html", "--open"], cwd=tmp_path) == 0
+
+    payload = _payload(tmp_path / "scan.html")
+    assert payload["only_open"] is True
+    assert {p["state"] for h in payload["hosts"] for p in h["ports"]} == {"open"}
+
+
+def test_the_html_report_makes_no_network_requests(run_cli, tmp_path, fixtures_dir):
+    """A deliverable that phones home is a deliverable that leaks the engagement."""
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "full_scan.xml", scan)
+    assert run_cli(["-f", str(scan), "-oF", "html"], cwd=tmp_path) == 0
+
+    document = (tmp_path / "scan.html").read_text(encoding="utf-8")
+    assert not re.search(r'<(?:script|iframe)[^>]+\ssrc=', document)
+    assert not re.search(r'<(?:link|img)[^>]+\s(?:href|src)=["\']?https?:', document)
+

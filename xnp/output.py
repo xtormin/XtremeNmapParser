@@ -1,10 +1,11 @@
-"""Filtering and export of the parsed DataFrame (CSV / XLSX / JSON)."""
+"""Filtering and export of the parsed DataFrame (CSV / XLSX / JSON / HTML)."""
 
 import os
 from typing import Optional
 
 import pandas as pd
 
+from xnp import html_report
 from xnp.config import XnpConfig, load_config
 from xnp.errors import XnpError
 from xnp.logs import get_logger
@@ -42,7 +43,7 @@ def _ensure_parent_dir(filename):
 
 
 def df_to_xlsx(df: pd.DataFrame, filename: str,
-               config: Optional[XnpConfig] = None) -> None:
+               config: Optional[XnpConfig] = None, context: Optional[dict] = None) -> None:
     config = config or load_config()
     _ensure_parent_dir(filename)
     try:
@@ -65,7 +66,8 @@ def df_to_xlsx(df: pd.DataFrame, filename: str,
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
 
-def df_to_csv(df: pd.DataFrame, filename: str) -> None:
+def df_to_csv(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = None,
+              context: Optional[dict] = None) -> None:
     _ensure_parent_dir(filename)
     try:
         df.to_csv(filename, sep=';', encoding='utf-8', index=False)
@@ -74,7 +76,8 @@ def df_to_csv(df: pd.DataFrame, filename: str) -> None:
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
 
-def df_to_json(df: pd.DataFrame, filename: str) -> None:
+def df_to_json(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = None,
+               context: Optional[dict] = None) -> None:
     _ensure_parent_dir(filename)
     try:
         df.to_json(filename, orient='records', lines=True)
@@ -83,10 +86,47 @@ def df_to_json(df: pd.DataFrame, filename: str) -> None:
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
 
+def df_to_html(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = None,
+               context: Optional[dict] = None) -> None:
+    """Write the self-contained HTML report.
+
+    ``context`` carries what the flat DataFrame cannot: the parsed reports,
+    their source paths and whether ``--open`` was asked for.  Without it the
+    report is still produced, just from the DataFrame alone -- see
+    :func:`xnp.html_report.payload_from_dataframe`.
+    """
+    config = config or load_config()
+    context = context or {}
+    _ensure_parent_dir(filename)
+    basename = html_report.basename_for(filename)
+
+    try:
+        reports = context.get("reports")
+        if reports:
+            payload = html_report.build_payload(
+                reports=reports,
+                sources=context.get("sources"),
+                merge=bool(context.get("merge")),
+                only_open=bool(context.get("only_open")),
+                title=config.html_title,
+                title_en=config.html_title_en,
+                basename=basename)
+        else:
+            payload = html_report.payload_from_dataframe(
+                df, title=config.html_title, title_en=config.html_title_en,
+                basename=basename)
+
+        html_report.write(payload, filename, config)
+        logger.info(f" |+| Output | html | {filename}")
+    except (OSError, ValueError, TypeError) as exc:
+        raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
+
+
 WRITERS = {
     "csv": df_to_csv,
     "xlsx": df_to_xlsx,
     "json": df_to_json,
+    "html": df_to_html,
 }
 
 
@@ -109,7 +149,7 @@ def get_output_name(file_xml: Optional[str], output_name: Optional[str],
 
 
 def write_dataframe(df, list_output_format, file_output_name=None, merger=None, file_xml=None,
-                    config=None):
+                    config=None, context=None):
     if df is None or df.empty:
         logger.warning(" |?| Warning | The file has no scan data, omitting export")
         return
@@ -120,17 +160,20 @@ def write_dataframe(df, list_output_format, file_output_name=None, merger=None, 
         writer = WRITERS.get(output_format_type)
         if writer is None:
             continue
-        writer(df, f"{output_name}.{output_format_type}")
+        writer(df, f"{output_name}.{output_format_type}", config=config, context=context)
 
 
-def export_single_xml(df, xml_file, list_output_format, file_output_name=None, config=None):
+def export_single_xml(df, xml_file, list_output_format, file_output_name=None, config=None,
+                      context=None):
     write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format,
-                    file_output_name=file_output_name, config=config)
+                    file_output_name=file_output_name, config=config, context=context)
 
 
-def export_multiple_xml(df, list_output_format, file_output_name, merger, config=None):
+def export_multiple_xml(df, list_output_format, file_output_name, merger, config=None,
+                        context=None):
     write_dataframe(df=df, list_output_format=list_output_format,
-                    file_output_name=file_output_name, merger=merger, config=config)
+                    file_output_name=file_output_name, merger=merger, config=config,
+                    context=context)
 
 
 def df_output_filters(df: Optional[pd.DataFrame], df_columns: list,

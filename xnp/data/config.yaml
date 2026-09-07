@@ -34,3 +34,8 @@ xlsx:
               'Version',
               'Extrainfo',
               'Scripts']
+
+html:
+  # The report ships in Spanish and English; the reader picks.
+  title: "Informe de superficie de red"
+  title_en: "Network exposure report"

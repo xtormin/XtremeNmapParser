@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV -oX hostile.xml 10.0.0.9" start="1725000000" startstr="Fri Sep  5 09:20:00 2026" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="2" services="80,8080"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host>
+<status state="up" reason="syn-ack" reason_ttl="64"/>
+<address addr="10.0.0.9" addrtype="ipv4"/>
+<hostnames><hostname name="&lt;/script&gt;&lt;img src=x onerror=alert(1)&gt;.evil.test" type="PTR"/></hostnames>
+<ports>
+<port protocol="tcp" portid="80">
+<state state="open" reason="syn-ack" reason_ttl="64"/>
+<service name="http" product="&lt;/script&gt;&lt;script&gt;alert(document.domain)&lt;/script&gt;" version="1.0" method="probed" conf="10"/>
+<script id="http-title" output="&lt;/script&gt;&lt;svg onload=alert(2)&gt;"/>
+</port>
+<port protocol="tcp" portid="8080">
+<state state="open" reason="syn-ack" reason_ttl="64"/>
+<service name="http-proxy" product="Evil &amp; Co &quot;proxy&quot;" extrainfo="--&gt;&lt;!--" method="probed" conf="10"/>
+</port>
+</ports>
+</host>
+<runstats><finished time="1725000060" timestr="Fri Sep  5 09:21:00 2026" elapsed="60.00" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

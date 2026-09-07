@@ -53,7 +53,15 @@ packages = ["xnp"]
 version = { attr = "xnp.__init__.__version__" }
 
 [tool.setuptools.package-data]
-xnp = ["data/*.dtd", "data/*.yaml"]
+xnp = [
+    "data/*.dtd",
+    "data/*.yaml",
+    "data/report/*.html",
+    "data/report/*.css",
+    "data/report/*.js",
+    "data/report/vendor/*.js",
+    "data/report/vendor/fonts/*.woff2",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -27,6 +27,10 @@ class NmapParser:
         self.xml_file = xml_file
         self.validate = validate
         self.include_hostless = include_hostless
+        #: The parsed object model, kept so callers that need more than the
+        #: eleven flat columns (the HTML report) can reach OS detection, scan
+        #: metadata and structured NSE output without re-reading the file.
+        self.report = None
 
     # --- Per-host extraction ------------------------------------------------
 
@@ -98,6 +102,7 @@ class NmapParser:
                 f" |x| Error | Could not parse {self.xml_file}. The scan may not have "
                 f"finished properly and the file is truncated.\n   {exc}") from exc
 
+        self.report = report
         rows = [row for host in report.hosts for row in self._rows_for_host(host)]
         df = to_dataframe(rows)
         logger.info(f" |+| {self.xml_file} parsed successfully  ")
@@ -108,23 +113,34 @@ class NmapParser:
         return self.get_simple_df()
 
     @staticmethod
-    def parse_file_multiple(xml_file_list: list, validate: bool = True,
-                            include_hostless: bool = False) -> pd.DataFrame:
-        """Parse several reports and concatenate them into a single DataFrame.
+    def parse_all(xml_file_list: list, validate: bool = True,
+                  include_hostless: bool = False) -> tuple:
+        """Parse several reports, returning ``(dataframe, reports)``.
 
-        Reports with no rows are skipped; if none of them yields data the
-        result is an empty DataFrame with the right columns rather than a
-        crash or ``None``.
+        Reports with no rows are skipped from the DataFrame; if none of them
+        yields data the result is an empty DataFrame with the right columns
+        rather than a crash or ``None``.  Every report that *parsed* is
+        returned regardless, because a host that is up with no open ports is
+        still worth drawing in the HTML report.
         """
-        frames = []
+        frames, reports = [], []
         for xml_file in xml_file_list:
-            df = NmapParser(xml_file, validate, include_hostless).parse_file()
+            parser = NmapParser(xml_file, validate, include_hostless)
+            df = parser.parse_file()
+            if parser.report is not None:
+                reports.append(parser.report)
             if df is not None and not df.empty:
                 frames.append(df)
 
         if not frames:
-            return empty_dataframe()
-        return pd.concat(frames, ignore_index=True)
+            return empty_dataframe(), reports
+        return pd.concat(frames, ignore_index=True), reports
+
+    @staticmethod
+    def parse_file_multiple(xml_file_list: list, validate: bool = True,
+                            include_hostless: bool = False) -> pd.DataFrame:
+        """Parse several reports and concatenate them into a single DataFrame."""
+        return NmapParser.parse_all(xml_file_list, validate, include_hostless)[0]
 
     @staticmethod
     def is_not_ip(val) -> Optional[str]:
@@ -139,10 +155,20 @@ class NmapParser:
             return val
 
     @staticmethod
+    def merge_all(xml_file_list: list, validate: bool = True,
+                  include_hostless: bool = False) -> tuple:
+        """Merge several reports, returning ``(dataframe, reports)``."""
+        df, reports = NmapParser.parse_all(xml_file_list, validate, include_hostless)
+        return NmapParser._merge(df), reports
+
+    @staticmethod
     def merge_df(xml_file_list: list, validate: bool = True,
                  include_hostless: bool = False) -> pd.DataFrame:
         """Merge several reports, keeping the most informative row per IP/port."""
-        df = NmapParser.parse_file_multiple(xml_file_list, validate, include_hostless)
+        return NmapParser.merge_all(xml_file_list, validate, include_hostless)[0]
+
+    @staticmethod
+    def _merge(df: pd.DataFrame) -> pd.DataFrame:
         if df.empty:
             return df
 

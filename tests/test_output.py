@@ -1,4 +1,4 @@
-"""Output filtering and the CSV / XLSX / JSON writers."""
+"""Output filtering and the CSV / XLSX / JSON / HTML writers."""
 
 import json
 
@@ -7,8 +7,10 @@ import pytest
 
 from xnp.errors import XnpError
 from xnp.output import (
+    WRITERS,
     df_output_filters,
     df_to_csv,
+    df_to_html,
     df_to_json,
     df_to_xlsx,
     get_output_name,
@@ -175,6 +177,7 @@ def test_writers_create_the_output_directory(df, tmp_path):
 @pytest.mark.parametrize("writer_name,method,extension", [
     ("df_to_json", "to_json", "json"),
     ("df_to_xlsx", "to_excel", "xlsx"),
+    ("df_to_html", "to_dict", "html"),
 ])
 def test_every_writer_raises_on_failure(df, tmp_path, monkeypatch, writer_name,
                                         method, extension):
@@ -211,3 +214,38 @@ def test_an_unknown_output_format_is_skipped(df, tmp_path):
 def test_write_dataframe_skips_none(tmp_path):
     write_dataframe(None, ["csv"], file_xml=str(tmp_path / "scan.xml"))
     assert not (tmp_path / "scan.csv").exists()
+
+
+# --- HTML writer ------------------------------------------------------------
+
+def test_html_is_in_the_writer_registry():
+    assert WRITERS["html"] is df_to_html
+
+
+def test_html_roundtrip(df, tmp_path):
+    target = tmp_path / "out.html"
+    df_to_html(df_output_filters(df, DEFAULT_COLUMNS, False), str(target))
+
+    document = target.read_text(encoding="utf-8")
+    assert document.startswith("<!DOCTYPE html>")
+    assert '<script id="xnp-data"' in document
+
+
+def test_html_creates_the_output_directory(df, tmp_path):
+    target = tmp_path / "reports" / "nested" / "out.html"
+    df_to_html(df_output_filters(df, DEFAULT_COLUMNS, False), str(target))
+    assert target.is_file()
+
+
+def test_write_dataframe_dispatches_the_html_writer(df, tmp_path):
+    filtered = df_output_filters(df, DEFAULT_COLUMNS, False)
+    write_dataframe(filtered, ["html"], file_xml=str(tmp_path / "scan.xml"))
+    assert (tmp_path / "scan.html").is_file()
+
+
+def test_every_writer_accepts_the_uniform_signature(df, tmp_path):
+    """All four take (df, filename, config=, context=) so dispatch stays dumb."""
+    filtered = df_output_filters(df, DEFAULT_COLUMNS, False)
+    for name, writer in WRITERS.items():
+        writer(filtered, str(tmp_path / f"uniform.{name}"), config=None, context=None)
+        assert (tmp_path / f"uniform.{name}").is_file()

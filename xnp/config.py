@@ -44,6 +44,8 @@ class XnpConfig:
     table_style: str
     columns_default: tuple
     columns_all: tuple
+    html_title: str = "Informe de superficie de red"
+    html_title_en: str = "Network exposure report"
     version: str = __version__
 
     def columns_for(self, choice: Optional[str]) -> list:
@@ -89,6 +91,8 @@ def _build(path=None):
             table_style=xlsx["table"]["style"].get(str),
             columns_default=tuple(xlsx["columns"]["default"].get(list)),
             columns_all=tuple(xlsx["columns"]["all"].get(list)),
+            html_title=config["html"]["title"].get(str),
+            html_title_en=config["html"]["title_en"].get(str),
         )
     except confuse.ConfigError as exc:
         raise XnpConfigError(f"Invalid configuration: {exc}") from exc

@@ -4,6 +4,7 @@ import pytest
 
 from xnp import __version__
 from xnp.cli import build_parser, parse_args
+from xnp.output import WRITERS
 
 pytestmark = pytest.mark.usefixtures("quiet_logs")
 
@@ -13,7 +14,10 @@ def test_defaults():
     args = build_parser().parse_args([])
     assert args.file is None
     assert args.directory is None
-    assert args.outputformat == ["csv", "xlsx", "json"]
+    # Derived from the writer registry, so adding a format cannot leave
+    # the CLI behind.
+    assert args.outputformat == sorted(WRITERS)
+    assert "html" in args.outputformat
     assert args.outputname is None
     assert args.columns is None
     assert args.merger is False

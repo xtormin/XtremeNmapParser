@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Xtreme Nmap Parser {{VERSION}}">
+<title>{{TITLE}}</title>
+<style>{{FONTS}}</style>
+<style>{{CSS}}</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div class="brand">
+      <h1 id="brand-title">{{TITLE}}</h1>
+      <span class="tag">xnp {{VERSION}}</span>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="switches">
+      <select id="lang-select" aria-label="Idioma / Language">
+        <option value="es">ES</option>
+        <option value="en">EN</option>
+      </select>
+      <button id="theme-btn" type="button"></button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="bar">
+    <div class="tabs" role="tablist">
+      <button id="tab-summary" role="tab" aria-selected="true" type="button" data-i18n="tab.summary"></button>
+      <button id="tab-targets" role="tab" aria-selected="false" type="button" data-i18n="tab.targets"></button>
+      <button id="tab-data" role="tab" aria-selected="false" type="button" data-i18n="tab.data"></button>
+    </div>
+    <div class="query">
+      <span class="prompt">&gt;</span>
+      <label for="q" style="position:absolute;left:-9999px" data-i18n="q.placeholder"></label>
+      <input id="q" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="q.placeholder">
+      <span class="count" id="count"></span>
+      <div id="suggest" hidden role="listbox" aria-label="Sugerencias"></div>
+    </div>
+    <button id="reset" type="button" data-i18n="btn.clear"></button>
+  </div>
+
+  <p class="hint" data-i18n-html="hint"></p>
+
+  <section id="panel-summary" class="panel active" role="tabpanel">
+    <div id="kpis" class="kpis"></div>
+    <div class="charts">
+      <div class="card" id="card-states"><h2 data-i18n="chart.states"></h2><div class="chart-box"><canvas id="chart-states"></canvas></div></div>
+      <div class="card" id="card-risk"><h2 data-i18n="chart.risk"></h2><div class="chart-box"><canvas id="chart-risk"></canvas></div></div>
+      <div class="card" id="card-services"><h2 data-i18n="chart.services"></h2><div class="chart-box"><canvas id="chart-services"></canvas></div></div>
+      <div class="card" id="card-ports"><h2 data-i18n="chart.ports"></h2><div class="chart-box"><canvas id="chart-ports"></canvas></div></div>
+      <div class="card" id="card-hosts"><h2 data-i18n="chart.hosts"></h2><div class="chart-box"><canvas id="chart-hosts"></canvas></div></div>
+      <div class="card" id="card-os"><h2 data-i18n="chart.os"></h2><div class="chart-box"><canvas id="chart-os"></canvas></div></div>
+    </div>
+  </section>
+
+  <section id="panel-targets" class="panel" role="tabpanel">
+    <div class="targets-bar">
+      <label for="group-by" data-i18n="targets.groupBy"></label>
+      <select id="group-by">
+        <option value="service" selected data-i18n="group.service"></option>
+        <option value="product" data-i18n="group.product"></option>
+        <option value="num" data-i18n="group.num"></option>
+        <option value="ip" data-i18n="group.ip"></option>
+        <option value="osFamily" data-i18n="group.osFamily"></option>
+      </select>
+      <span id="groups-summary"></span>
+      <span class="grow"></span>
+      <button id="export-targets" type="button" data-i18n="targets.exportAll"></button>
+    </div>
+    <p class="hint targets-hint" data-i18n="targets.hint"></p>
+    <div id="groups"></div>
+  </section>
+
+  <section id="panel-data" class="panel" role="tabpanel">
+    <div id="active-filters" class="active-filters" hidden></div>
+    <div class="table-card">
+      <div class="table-tools">
+        <span style="font-size:12px;color:var(--text-3)" data-i18n="table.hint"></span>
+        <span class="grow"></span>
+        <button id="csv" type="button" data-i18n="table.csv"></button>
+      </div>
+      <div class="table-scroll" id="table-scroll">
+        <table>
+          <thead><tr id="thead-row"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span id="foot-generated"></span>
+    <span id="foot-charts"></span>
+    <span id="foot-offline"></span>
+  </footer>
+</div>
+
+<div id="tip" class="tip" style="display:none"></div>
+
+<div id="filter-menu" hidden role="dialog" aria-label="Filtro de columna">
+  <div class="fm-head">
+    <span id="fm-title"></span>
+    <span id="fm-count"></span>
+  </div>
+  <input id="fm-search" type="search" spellcheck="false" autocomplete="off" data-i18n-ph="fm.search">
+  <div class="fm-actions">
+    <button id="fm-all" type="button" data-i18n="fm.all"></button>
+    <button id="fm-only" type="button" data-i18n="fm.only"></button>
+  </div>
+  <div id="fm-list"></div>
+</div>
+
+<div id="drawer-scrim"></div>
+<aside id="drawer" aria-hidden="true" aria-label="Detalle de la fila seleccionada">
+  <header>
+    <div class="titles">
+      <h2 id="drawer-title"></h2>
+      <p id="drawer-sub"></p>
+    </div>
+    <span id="drawer-risk" class="pill low"></span>
+    <button id="drawer-close" type="button" data-i18n-aria="drawer.close">✕</button>
+  </header>
+  <div id="drawer-body"></div>
+</aside>
+
+<script id="xnp-data" type="application/json">{{PAYLOAD}}</script>
+<script>window.XNP_DATA = JSON.parse(document.getElementById("xnp-data").textContent);</script>
+<script>{{CHARTJS}}</script>
+<script>{{JS}}</script>
+</body>
+</html>
