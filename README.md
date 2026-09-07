@@ -88,6 +88,12 @@ output produced by other tools:
 xnp -f masscan.xml --no-validate
 ```
 
+With `-f` an invalid file ends the run, because you named that one file. With
+`-d` it does not: the file is reported and left out, and the rest still produce
+their reports — one truncated capture in a folder of two hundred should not cost
+you the other hundred and ninety nine. XNP names every file it skipped at the
+end of the run, and if *nothing* in the directory parsed, that is still an error.
+
 Exit codes: `0` success, `1` error, `2` invalid or non-nmap XML, `3` no input
 files found.
 
@@ -269,6 +275,9 @@ ruff check xnp tests xnp.py
     makes no network requests.
   - The report's palette is audited against WCAG AA by the test suite, and the
     interaction accent no longer shares a hue with the risk colours.
+  - A directory run no longer stops at the first file that fails validation: it
+    reports the file, skips it and carries on, then names everything it skipped.
+    A single named file (`-f`) still fails the run.
   - IBM Plex Sans/Mono (SIL OFL) are vendored and inlined, so the report renders
     with its intended type on a machine that has never seen it and never reaches
     the network.

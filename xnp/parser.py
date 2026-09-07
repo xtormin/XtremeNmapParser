@@ -7,7 +7,7 @@ from typing import Optional
 import pandas as pd
 from lxml import etree
 
-from xnp.errors import InvalidNmapReport
+from xnp.errors import InvalidNmapReport, XnpError, short_reason
 from xnp.logs import get_logger
 from xnp.models import ScanData, empty_dataframe, to_dataframe
 from xnp.xml_report import NmapXMLReport
@@ -114,27 +114,48 @@ class NmapParser:
 
     @staticmethod
     def parse_all(xml_file_list: list, validate: bool = True,
-                  include_hostless: bool = False) -> tuple:
-        """Parse several reports, returning ``(dataframe, reports)``.
+                  include_hostless: bool = False, skip_invalid: bool = False) -> tuple:
+        """Parse several reports, returning ``(dataframe, reports, skipped)``.
 
         Reports with no rows are skipped from the DataFrame; if none of them
         yields data the result is an empty DataFrame with the right columns
         rather than a crash or ``None``.  Every report that *parsed* is
         returned regardless, because a host that is up with no open ports is
         still worth drawing in the HTML report.
+
+        With ``skip_invalid`` a file that fails to parse or validate is
+        reported and left out instead of ending the run.  Pointing XNP at a
+        directory means "process what is here", and one truncated capture in a
+        folder of two hundred should not cost you the other hundred and ninety
+        nine.  ``skipped`` carries ``(path, error)`` for each one so the caller
+        can say what was left out.
         """
-        frames, reports = [], []
+        frames, reports, skipped = [], [], []
         for xml_file in xml_file_list:
             parser = NmapParser(xml_file, validate, include_hostless)
-            df = parser.parse_file()
+            try:
+                df = parser.parse_file()
+            except XnpError as exc:
+                if not skip_invalid:
+                    raise
+                logger.warning(f" |?| Warning | Skipping {xml_file}: "
+                               f"{short_reason(exc, xml_file)}")
+                skipped.append((xml_file, exc))
+                continue
+
             if parser.report is not None:
                 reports.append(parser.report)
             if df is not None and not df.empty:
                 frames.append(df)
 
+        if skipped and len(skipped) == len(xml_file_list):
+            # Everything failed: that is an error, not a run that produced
+            # nothing and quietly claimed success.
+            raise skipped[0][1]
+
         if not frames:
-            return empty_dataframe(), reports
-        return pd.concat(frames, ignore_index=True), reports
+            return empty_dataframe(), reports, skipped
+        return pd.concat(frames, ignore_index=True), reports, skipped
 
     @staticmethod
     def parse_file_multiple(xml_file_list: list, validate: bool = True,
@@ -156,10 +177,11 @@ class NmapParser:
 
     @staticmethod
     def merge_all(xml_file_list: list, validate: bool = True,
-                  include_hostless: bool = False) -> tuple:
-        """Merge several reports, returning ``(dataframe, reports)``."""
-        df, reports = NmapParser.parse_all(xml_file_list, validate, include_hostless)
-        return NmapParser._merge(df), reports
+                  include_hostless: bool = False, skip_invalid: bool = False) -> tuple:
+        """Merge several reports, returning ``(dataframe, reports, skipped)``."""
+        df, reports, skipped = NmapParser.parse_all(
+            xml_file_list, validate, include_hostless, skip_invalid)
+        return NmapParser._merge(df), reports, skipped
 
     @staticmethod
     def merge_df(xml_file_list: list, validate: bool = True,

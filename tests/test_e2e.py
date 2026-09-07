@@ -219,3 +219,54 @@ def test_the_html_report_makes_no_network_requests(run_cli, tmp_path, fixtures_d
     assert not re.search(r'<(?:script|iframe)[^>]+\ssrc=', document)
     assert not re.search(r'<(?:link|img)[^>]+\s(?:href|src)=["\']?https?:', document)
 
+
+# --- One bad file must not cost you the good ones ---------------------------
+
+def test_a_directory_run_skips_a_file_that_does_not_validate(run_cli, tmp_path,
+                                                             fixtures_dir, caplog):
+    """Pointing at a directory means "process what is here"."""
+    for name in ("single_host", "multi_host"):
+        shutil.copy(fixtures_dir / f"{name}.xml", tmp_path / f"{name}.xml")
+    shutil.copy(fixtures_dir / "masscan.xml", tmp_path / "masscan.xml")
+
+    assert run_cli(["-d", str(tmp_path) + "/", "-M", "-oF", "csv",
+                    "-oN", str(tmp_path / "merged")], cwd=tmp_path) == 0
+
+    merged = pd.read_csv(tmp_path / "merged.csv", sep=";")
+    assert not merged.empty, "the valid scans still produced a report"
+    assert "masscan" in caplog.text and "Skipping" in caplog.text
+
+
+def test_the_skipped_files_are_named_at_the_end(run_cli, tmp_path, fixtures_dir, caplog):
+    """A partial run is never a silent one."""
+    shutil.copy(fixtures_dir / "single_host.xml", tmp_path / "good.xml")
+    shutil.copy(fixtures_dir / "masscan.xml", tmp_path / "bad.xml")
+
+    assert run_cli(["-d", str(tmp_path) + "/", "-oF", "csv"], cwd=tmp_path) == 0
+    assert (tmp_path / "good.csv").is_file()
+    assert not (tmp_path / "bad.csv").exists()
+    assert "1 of 2 files were skipped" in caplog.text
+    assert "bad.xml" in caplog.text
+
+
+def test_a_directory_where_nothing_parses_is_still_an_error(run_cli, tmp_path,
+                                                            fixtures_dir):
+    """Skipping everything is a failed run, not a successful empty one."""
+    shutil.copy(fixtures_dir / "masscan.xml", tmp_path / "one.xml")
+    shutil.copy(fixtures_dir / "not_nmap.xml", tmp_path / "two.xml")
+
+    assert run_cli(["-d", str(tmp_path) + "/", "-oF", "csv"], cwd=tmp_path) == 2
+    assert not list(tmp_path.glob("*.csv"))
+
+
+def test_merging_a_directory_where_nothing_parses_is_an_error(run_cli, tmp_path,
+                                                              fixtures_dir):
+    shutil.copy(fixtures_dir / "masscan.xml", tmp_path / "one.xml")
+    assert run_cli(["-d", str(tmp_path) + "/", "-M", "-oF", "csv"], cwd=tmp_path) == 2
+
+
+def test_a_named_file_that_does_not_validate_still_fails(run_cli, tmp_path, fixtures_dir):
+    """With -f you named that file, so its failure is the run's failure."""
+    shutil.copy(fixtures_dir / "masscan.xml", tmp_path / "scan.xml")
+    assert run_cli(["-f", str(tmp_path / "scan.xml"), "-oF", "csv"], cwd=tmp_path) == 2
+    assert not (tmp_path / "scan.csv").exists()

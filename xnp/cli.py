@@ -10,7 +10,7 @@ from xnp import __version__, banner, update
 from xnp import files as func
 from xnp import output as out
 from xnp.config import load_config
-from xnp.errors import NoInputFilesError, XnpError
+from xnp.errors import NoInputFilesError, XnpError, short_reason
 from xnp.logs import get_logger, setup_logging
 from xnp.parser import NmapParser
 
@@ -146,21 +146,48 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
         if not xml_files:
             raise NoInputFilesError(f" |-| XML files in {folder_multiple_xml} not found")
 
+        # A directory run processes what is there: a file that will not parse
+        # is reported and left out rather than ending the run.  With -f the
+        # error still stops everything, because you named that one file.
         if merger:
-            df, reports = NmapParser.merge_all(xml_files, validate, include_hostless)
+            df, reports, skipped = NmapParser.merge_all(
+                xml_files, validate, include_hostless, skip_invalid=True)
             banner.print_output_files_info()
             df = out.df_output_filters(df, df_columns, only_open_ports)
             out.export_multiple_xml(df, list_output_format, file_output_name, merger, config,
                                     context=html_context(reports, xml_files, merge=True))
         else:
+            skipped = []
             for xml_file in xml_files:
                 parser = NmapParser(xml_file, validate, include_hostless)
-                df = parser.parse_file()
+                try:
+                    df = parser.parse_file()
+                except XnpError as exc:
+                    logger.warning(f" |?| Warning | Skipping {xml_file}: "
+                                   f"{short_reason(exc, xml_file)}")
+                    skipped.append((xml_file, exc))
+                    print("\n")
+                    continue
                 if df is None:
                     logger.warning(" |?| Warning | The file has no scan data, omitting export")
                 else:
                     export(df, xml_file, html_context([parser.report], [xml_file]))
                 print("\n")
+
+            if len(skipped) == len(xml_files):
+                raise skipped[0][1]
+
+        report_skipped(skipped, len(xml_files))
+
+
+def report_skipped(skipped, total):
+    """Say plainly what was left out, so a partial run is never a silent one."""
+    if not skipped:
+        return
+    logger.warning(f" |?| Warning | {len(skipped)} of {total} files were skipped:")
+    for xml_file, _ in skipped:
+        logger.warning(f" |?|   {xml_file}")
+    logger.warning(" |?| Warning | Pass --no-validate if they come from another scanner")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
