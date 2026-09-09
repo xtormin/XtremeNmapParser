@@ -24,6 +24,11 @@
 
   function el(id) { return document.getElementById(id); }
 
+  /** Levels are stored language-neutral and shown in the reader's language. */
+  function levelLabel(level) {
+    return level ? t("level." + level) : "";
+  }
+
   function dash(value) { return (value === null || value === undefined || value === "") ? "—" : value; }
 
   function counter(list, key) {
@@ -32,6 +37,18 @@
       var k = key(item);
       if (k === null || k === undefined || k === "") return;
       map.set(k, (map.get(k) || 0) + 1);
+    });
+    return map;
+  }
+
+  /** Like counter(), but a row contributes one count per element it carries. */
+  function multiCounter(list, key) {
+    var map = new Map();
+    list.forEach(function (item) {
+      (key(item) || []).forEach(function (value) {
+        if (value === null || value === undefined || value === "") return;
+        map.set(value, (map.get(value) || 0) + 1);
+      });
     });
     return map;
   }
@@ -59,13 +76,31 @@
       "q.placeholder": "state:open service:http port<1024   ( / para enfocar )",
       "q.rows": "{n} / {total} filas",
       "btn.clear": "Limpiar",
-      "hint": "Escribe un campo y <code>:</code> y te sugiere los valores que hay en este escaneo (<code>↑</code> <code>↓</code> y <code>Enter</code>). Operadores <code>=</code> <code>&lt;</code> <code>&gt;</code> <code>!=</code>, prefijo <code>-</code> para negar, y una palabra suelta busca en toda la fila.",
+      "hint": "Escribe un campo y <code>:</code> y te sugiere los valores compatibles con lo que ya has escrito. Las cifras y las gráficas también filtran al pulsarlas (<code>↑</code> <code>↓</code> y <code>Enter</code>). Operadores <code>=</code> <code>&lt;</code> <code>&gt;</code> <code>!=</code>, prefijo <code>-</code> para negar, y una palabra suelta busca en toda la fila.",
       "kpi.hosts": "Hosts", "kpi.hosts.sub": "{n} con puertos abiertos",
       "kpi.open": "Puertos abiertos", "kpi.open.sub": "{n} puertos en total",
       "kpi.services": "Servicios distintos", "kpi.services.sub": "identificados por -sV",
-      "kpi.high": "Alto riesgo", "kpi.high.sub": "expuestos",
-      "kpi.cleartext": "Sin cifrar", "kpi.cleartext.sub": "credenciales en claro",
-      "chart.states": "Estados de puerto", "chart.risk": "Riesgo de lo abierto",
+      "kpi.cleartext": "Sin cifrar", "kpi.cleartext.sub": "puertos que no cifran el tráfico",
+      "tag.cleartext-creds": "credenciales en claro",
+      "tag.cleartext-data": "tráfico sin cifrar",
+      "tag.remote-admin": "administración remota",
+      "tag.database": "base de datos",
+      "tag.file-share": "ficheros compartidos",
+      "tag.no-auth": "sin autenticación",
+      "tag.enumeration": "enumerable",
+      "tag.directory": "directorio",
+      "tag.oob-management": "gestión fuera de banda",
+      "tag.known-target": "objetivo recurrente",
+      "tag.code-exec": "ejecución de código",
+      "tag.container": "contenedores",
+      "tag.display": "display remoto",
+      "tag.amplification": "amplificador UDP",
+      "tag.web": "web",
+      "tag.mail": "correo",
+      "tag.dns": "dns",
+      "chart.tags": "Categorías de exposición",
+      "col.tags": "Motivos",
+      "chart.states": "Estados de puerto",
       "chart.services": "Servicios más expuestos", "chart.ports": "Puertos más abiertos",
       "chart.hosts": "Hosts más expuestos", "chart.os": "Sistemas operativos",
       "chart.clickToFilter": "clic para filtrar",
@@ -86,7 +121,8 @@
       "table.capped": "Mostrando {shown} de {total} filas. Afina el filtro o exporta a CSV para verlas todas.",
       "col.ip": "IP", "col.hostname": "Hostname", "col.num": "Puerto", "col.protocol": "Proto",
       "col.state": "Estado", "col.service": "Servicio", "col.product": "Producto",
-      "col.version": "Versión", "col.extrainfo": "Extrainfo", "col.risk": "Riesgo",
+      "col.version": "Versión", "col.extrainfo": "Extrainfo", "col.interest": "Interés",
+      "level.high": "alto", "level.medium": "medio", "level.low": "bajo",
       "col.os": "SO", "col.sourceName": "Origen",
       "filters.label": "Filtros:", "filters.clearAll": "Quitar todos",
       "filters.values": "{n} valores",
@@ -95,7 +131,7 @@
       "fm.noMatch": "Ningún valor coincide con «{q}».",
       "sg.field": "campo", "sg.value": "valor", "sg.freeText": "texto libre",
       "drawer.close": "Cerrar el detalle", "drawer.noPorts": "sin puertos",
-      "drawer.why": "Marcado {risk}",
+      "drawer.why": "Marcado como interés {level}",
       "drawer.portService": "Puerto y servicio", "drawer.host": "Host",
       "drawer.os": "Sistema operativo", "drawer.otherPorts": "Otros puertos de este host",
       "drawer.nse": "Salida NSE", "drawer.trace": "Traceroute",
@@ -108,8 +144,6 @@
       "f.lastboot": "Último arranque", "f.source": "Origen",
       "meta.hosts": "hosts", "meta.files": "ficheros", "meta.nmap": "nmap",
       "foot.generated": "Generado por Xtreme Nmap Parser {v} el {d}",
-      "foot.charts": "Gráficas: Chart.js 4.5.1 (MIT), embebido",
-      "foot.offline": "Informe autónomo: no realiza ninguna petición de red",
       "export.header": "# {title} -- agrupado por {by}",
       "export.generated": "# generado por xnp {v} el {d}"
     },
@@ -119,13 +153,31 @@
       "q.placeholder": "state:open service:http port<1024   ( / to focus )",
       "q.rows": "{n} / {total} rows",
       "btn.clear": "Clear",
-      "hint": "Type a field and <code>:</code> and it offers the values present in this scan (<code>↑</code> <code>↓</code> and <code>Enter</code>). Operators <code>=</code> <code>&lt;</code> <code>&gt;</code> <code>!=</code>, prefix <code>-</code> to negate, and a bare word searches the whole row.",
+      "hint": "Type a field and <code>:</code> and it offers the values that fit what you have typed so far. The figures and charts filter on click too (<code>↑</code> <code>↓</code> and <code>Enter</code>). Operators <code>=</code> <code>&lt;</code> <code>&gt;</code> <code>!=</code>, prefix <code>-</code> to negate, and a bare word searches the whole row.",
       "kpi.hosts": "Hosts", "kpi.hosts.sub": "{n} with open ports",
       "kpi.open": "Open ports", "kpi.open.sub": "{n} ports in total",
       "kpi.services": "Distinct services", "kpi.services.sub": "identified by -sV",
-      "kpi.high": "High risk", "kpi.high.sub": "exposed",
-      "kpi.cleartext": "Cleartext", "kpi.cleartext.sub": "credentials in the clear",
-      "chart.states": "Port states", "chart.risk": "Risk of what is open",
+      "kpi.cleartext": "Cleartext", "kpi.cleartext.sub": "ports that do not encrypt traffic",
+      "tag.cleartext-creds": "cleartext credentials",
+      "tag.cleartext-data": "unencrypted traffic",
+      "tag.remote-admin": "remote administration",
+      "tag.database": "database",
+      "tag.file-share": "file sharing",
+      "tag.no-auth": "unauthenticated",
+      "tag.enumeration": "enumerable",
+      "tag.directory": "directory",
+      "tag.oob-management": "out-of-band management",
+      "tag.known-target": "recurrent target",
+      "tag.code-exec": "code execution",
+      "tag.container": "containers",
+      "tag.display": "remote display",
+      "tag.amplification": "UDP amplifier",
+      "tag.web": "web",
+      "tag.mail": "mail",
+      "tag.dns": "dns",
+      "chart.tags": "Exposure categories",
+      "col.tags": "Reasons",
+      "chart.states": "Port states",
       "chart.services": "Most exposed services", "chart.ports": "Most open ports",
       "chart.hosts": "Most exposed hosts", "chart.os": "Operating systems",
       "chart.clickToFilter": "click to filter",
@@ -146,7 +198,8 @@
       "table.capped": "Showing {shown} of {total} rows. Narrow the filter or export to CSV to see them all.",
       "col.ip": "IP", "col.hostname": "Hostname", "col.num": "Port", "col.protocol": "Proto",
       "col.state": "State", "col.service": "Service", "col.product": "Product",
-      "col.version": "Version", "col.extrainfo": "Extrainfo", "col.risk": "Risk",
+      "col.version": "Version", "col.extrainfo": "Extrainfo", "col.interest": "Interest",
+      "level.high": "high", "level.medium": "medium", "level.low": "low",
       "col.os": "OS", "col.sourceName": "Source",
       "filters.label": "Filters:", "filters.clearAll": "Clear all",
       "filters.values": "{n} values",
@@ -155,7 +208,7 @@
       "fm.noMatch": "No value matches \u201c{q}\u201d.",
       "sg.field": "field", "sg.value": "value", "sg.freeText": "free text",
       "drawer.close": "Close the detail", "drawer.noPorts": "no ports",
-      "drawer.why": "Flagged {risk}",
+      "drawer.why": "Flagged {level} interest",
       "drawer.portService": "Port and service", "drawer.host": "Host",
       "drawer.os": "Operating system", "drawer.otherPorts": "Other ports on this host",
       "drawer.nse": "NSE output", "drawer.trace": "Traceroute",
@@ -168,8 +221,6 @@
       "f.lastboot": "Last boot", "f.source": "Source",
       "meta.hosts": "hosts", "meta.files": "files", "meta.nmap": "nmap",
       "foot.generated": "Generated by Xtreme Nmap Parser {v} on {d}",
-      "foot.charts": "Charts: Chart.js 4.5.1 (MIT), embedded",
-      "foot.offline": "Self-contained report: it makes no network requests",
       "export.header": "# {title} -- grouped by {by}",
       "export.generated": "# generated by xnp {v} on {d}"
     }
@@ -251,8 +302,6 @@
     el("brand-title").textContent = reportTitle();
     el("foot-generated").textContent = t("foot.generated",
       { v: DATA.xnp_version, d: DATA.generated_at });
-    el("foot-charts").textContent = t("foot.charts");
-    el("foot-offline").textContent = t("foot.offline");
   }
 
   function setLang(next) {
@@ -302,7 +351,8 @@
       cpe: (service.cpe || []).join(" "),
       os: host.os.best || null,
       osFamily: host.os.family || null,
-      risk: port ? port.risk : "low",
+      interest: port ? port.interest : "low",
+      tags: port ? (port.tags || []) : [],
       cleartext: port ? port.cleartext : false,
       scripts: scriptText,
       source: host.source,
@@ -311,7 +361,7 @@
     };
     row.blob = [row.ip, row.hostname, row.num, row.protocol, row.state, row.service,
       row.product, row.version, row.extrainfo, row.os, row.cpe, row.scripts,
-      row.source].join(" ").toLowerCase();
+      row.source, row.tags.join(" ")].join(" ").toLowerCase();
     return row;
   }
 
@@ -325,8 +375,11 @@
     state: "state", reason: "reason",
     service: "service", svc: "service",
     product: "product", version: "version", extrainfo: "extrainfo",
-    os: "os", family: "osFamily", risk: "risk", cpe: "cpe",
-    script: "scripts", nse: "scripts", source: "source", file: "source"
+    os: "os", family: "osFamily", interest: "interest", cpe: "cpe",
+    script: "scripts", nse: "scripts", source: "source", file: "source",
+    // The "sin cifrar" figure had no way to say itself in the query language,
+    // so clicking it could not fill the bar like every other drill-down.
+    cleartext: "cleartext", tag: "tags", tags: "tags"
   };
 
   var TERM_RE = /^(-?)([a-z]+)(>=|<=|!=|[:=<>])(.*)$/i;
@@ -367,6 +420,18 @@
       test: function (row) {
         var actual = row[field];
         if (actual === null || actual === undefined) return false;
+
+        // A row carries several tags at once, so a term matches if any of them
+        // does -- "=" against one whole tag, ":" inside one.
+        if (Array.isArray(actual)) {
+          return actual.some(function (item) {
+            item = String(item).toLowerCase();
+            if (op === "=") return item === value;
+            if (op === "!=") return item.indexOf(value) === -1;
+            return item.indexOf(value) !== -1;
+          });
+        }
+
         if (numeric) {
           if (isNaN(value)) return false;
           switch (op) {
@@ -451,33 +516,37 @@
     var open = ports.filter(function (r) { return r.state === "open"; });
     var hosts = new Set(rows.map(function (r) { return r.ip; }));
     var hostsWithOpen = new Set(open.map(function (r) { return r.ip; }));
-    var high = open.filter(function (r) { return r.risk === "high"; });
     var cleartext = open.filter(function (r) { return r.cleartext; });
     var services = new Set(open.map(function (r) { return r.service; }).filter(Boolean));
 
+    // `terms` makes a figure clickable, and only the figures that can actually
+    // say themselves in the query language get it: "hosts" and "distinct
+    // services" are counts of a projection, not a subset you can filter to.
     var items = [
       { label: t("kpi.hosts"), value: hosts.size, sub: t("kpi.hosts.sub", { n: hostsWithOpen.size }) },
-      { label: t("kpi.open"), value: open.length, sub: t("kpi.open.sub", { n: ports.length }) },
+      { label: t("kpi.open"), value: open.length, sub: t("kpi.open.sub", { n: ports.length }),
+        terms: [["state", "open"]] },
       { label: t("kpi.services"), value: services.size, sub: t("kpi.services.sub") },
-      { label: t("kpi.high"), value: high.length, sub: t("kpi.high.sub"),
-        cls: high.length ? "is-high" : "" },
       { label: t("kpi.cleartext"), value: cleartext.length, sub: t("kpi.cleartext.sub"),
-        cls: cleartext.length ? "is-medium" : "" }
+        cls: cleartext.length ? "is-medium" : "",
+        terms: [["state", "open"], ["cleartext", "true"]] }
     ];
 
-    el("kpis").innerHTML = items.map(function (item) {
-      return '<div class="kpi ' + (item.cls || "") + '">' +
+    el("kpis").innerHTML = items.map(function (item, index) {
+      var tag = item.terms ? "button" : "div";
+      return "<" + tag + ' class="kpi ' + (item.cls || "") +
+        (item.terms ? " clickable" : "") + '"' +
+        (item.terms ? ' data-kpi="' + index + '" type="button"' : "") + ">" +
         '<div class="label">' + esc(item.label) + "</div>" +
         '<div class="value">' + esc(item.value) + "</div>" +
-        '<div class="sub">' + esc(item.sub) + "</div></div>";
+        '<div class="sub">' + esc(item.sub) + "</div></" + tag + ">";
     }).join("");
+
+    KPI_TERMS = items.map(function (item) { return item.terms || null; });
   }
 
-  function riskColor(risk) {
-    if (risk === "high") return cssVar("--high");
-    if (risk === "medium") return cssVar("--medium");
-    return cssVar("--low");
-  }
+  //: Filled by renderKpis so the click handler can find the terms by index.
+  var KPI_TERMS = [];
 
   /** A short label for a chart axis: the host part of a FQDN, else the IP. */
   function shortLabel(hostname, ip) {
@@ -509,20 +578,53 @@
    * chart shows "host07" for 10.20.30.7, and filtering on the truncated label
    * would match nothing. */
 
+  /* A drill-down writes into the query bar rather than setting a hidden
+   * filter, because the bar is the surface you can then edit: click "ssh",
+   * see `service=ssh`, and add `-state:closed` to it without starting over.
+   * Exact match, not contains: clicking "http" should not drag in
+   * "http-proxy" as well. */
+
   function drillTo(spec, value) {
     if (value === null || value === undefined || value === BLANK) return;
-    if (typeof spec === "function") spec(value);
-    else setFilter(spec, new Set([String(value)]));
+    var terms = typeof spec === "function" ? spec(value) : [[spec, String(value)]];
+    if (!terms || !terms.length) return;
     // render() destroys and rebuilds every chart, including the one whose
     // click handler we are standing in; let the event finish dispatching first.
-    setTimeout(function () { showTab("data"); render(); }, 0);
+    setTimeout(function () { applyTerms(terms); }, 0);
   }
 
-  /** The ports chart buckets on "443/tcp", which is two columns' worth. */
+  /** The ports chart buckets on "443/tcp", which is two terms' worth. */
   function drillToPort(value) {
     var parts = String(value).split("/");
-    setFilter("num", new Set([parts[0]]));
-    if (parts[1]) setFilter("protocol", new Set([parts[1]]));
+    var terms = [["port", parts[0]]];
+    if (parts[1]) terms.push(["proto", parts[1]]);
+    return terms;
+  }
+
+  /** Replace any term already naming these fields, then append the new ones. */
+  function applyTerms(terms) {
+    var text = el("q").value;
+    var replaced = {};
+    terms.forEach(function (term) {
+      var property = FIELDS[term[0]];
+      if (property) replaced[property] = true;
+    });
+
+    var kept = tokenSpans(text)
+      .map(function (span) { return text.slice(span.start, span.end); })
+      .filter(function (token) {
+        var match = TOKEN_SPLIT.exec(token);
+        if (!match) return true;
+        var property = FIELDS[match[2].toLowerCase()];
+        return !property || !replaced[property];
+      });
+
+    terms.forEach(function (term) {
+      kept.push(term[0] + "=" + quoteIfNeeded(term[1]));
+    });
+
+    setQuery(kept.join(" "));
+    showTab("data");
   }
 
   function clickable(entries, spec) {
@@ -546,7 +648,7 @@
     };
   }
 
-  function labelOf(entry) { return clip(entry.length > 2 ? entry[2] : entry[0], 16); }
+  function labelOf(entry) { return clip(entry.length > 2 ? entry[2] : entry[0], 22); }
 
   function barConfig(entries, color, spec) {
     var handlers = clickable(entries, spec);
@@ -618,21 +720,18 @@
       return cssVar("--closed");
     }), "state"));
 
-    var riskEntries = ["high", "medium", "low"].map(function (level) {
-      return [level, open.filter(function (r) { return r.risk === level; }).length];
-    }).filter(function (e) { return e[1] > 0; });
-    drawChart("chart-risk", doughnutConfig(riskEntries, riskEntries.map(function (e) {
-      return riskColor(e[0]);
-    }), "risk"));
-
     var serviceEntries = topN(counter(open, function (r) { return r.service; }), 10);
     drawChart("chart-services", barConfig(serviceEntries, cssVar("--chart-1"), "service"));
 
     var portEntries = topN(counter(open, function (r) { return r.num + "/" + r.protocol; }), 10);
     drawChart("chart-ports", barConfig(portEntries, cssVar("--chart-2"), drillToPort));
 
+    var tagEntries = topN(multiCounter(open, function (r) { return r.tags; }), 12)
+      .map(function (e) { return [e[0], e[1], t("tag." + e[0])]; });
+    drawChart("chart-tags", barConfig(tagEntries, cssVar("--chart-1"), "tag"));
+
     var osEntries = topN(counter(rows, function (r) { return r.osFamily; }), 8);
-    drawChart("chart-os", barConfig(osEntries, cssVar("--chart-3"), "osFamily"));
+    drawChart("chart-os", barConfig(osEntries, cssVar("--chart-3"), "family"));
 
     // Keyed on the address, labelled with the short name: the label is lossy.
     var hostCounts = counter(open, function (r) { return r.ip; });
@@ -646,7 +745,7 @@
     // An empty pair of axes reads as "nothing was scanned" rather than
     // "nothing here matches your filter"; hide the card instead.
     toggleChartCard("card-states", stateEntries.length);
-    toggleChartCard("card-risk", riskEntries.length);
+    toggleChartCard("card-tags", tagEntries.length);
     toggleChartCard("card-services", serviceEntries.length);
     toggleChartCard("card-ports", portEntries.length);
     toggleChartCard("card-hosts", hostEntries.length);
@@ -672,18 +771,52 @@
     ["proto", "protocol", true], ["state", "state", true], ["reason", "reason", true],
     ["service", "service", true], ["product", "product", true],
     ["version", "version", true], ["os", "os", true], ["family", "osFamily", true],
-    ["risk", "risk", true], ["source", "sourceName", true],
+    ["interest", "interest", true], ["source", "sourceName", true],
+    ["cleartext", "cleartext", true], ["tag", "tags", true],
     ["extrainfo", "extrainfo", false], ["cpe", "cpe", false], ["script", "scripts", false]
   ];
 
-  var VALUE_INDEX = {};
+  /* Suggestions come from the rows the rest of the query has already narrowed
+   * to, not from the whole scan.  After `ip:10.30.0.10`, `service:` offers the
+   * services on that host; after `service:ssh`, `ip:` offers the hosts running
+   * it.  A menu that offers values yielding zero rows is a menu that wastes a
+   * keystroke to find that out. */
 
-  function valuesFor(property) {
-    if (!VALUE_INDEX[property]) {
-      var counts = counter(ROWS, function (row) {
-        var value = row[property];
-        return (value === null || value === undefined || value === "") ? null : String(value);
-      });
+  var suggestCache = { key: null, rows: [], values: {} };
+
+  function filtersSignature() {
+    return Object.keys(state.filters).sort().map(function (key) {
+      return key + "=" + Array.from(state.filters[key]).sort().join(",");
+    }).join(";");
+  }
+
+  /** Rows matching everything except the term currently under the caret. */
+  function contextFor(token) {
+    var text = el("q").value;
+    var without = (text.slice(0, token.start) + text.slice(token.end)).trim();
+    var key = without + "\u0000" + filtersSignature();
+
+    // Typing more of a value does not change the context, so the row scan is
+    // done once per context rather than once per keystroke.
+    if (suggestCache.key !== key) {
+      var terms = parseQuery(without);
+      suggestCache = {
+        key: key,
+        rows: runQuery(ROWS, terms).filter(function (row) { return facetMatch(row, null); }),
+        values: {}
+      };
+    }
+    return suggestCache;
+  }
+
+  function valuesFor(context, property) {
+    if (!context.values[property]) {
+      var counts = property === "tags"
+        ? multiCounter(context.rows, function (row) { return row.tags; })
+        : counter(context.rows, function (row) {
+            var value = row[property];
+            return (value === null || value === undefined || value === "") ? null : String(value);
+          });
       var entries = Array.from(counts.entries());
       if (property === "num") {
         entries.sort(function (a, b) { return parseInt(a[0], 10) - parseInt(b[0], 10); });
@@ -692,9 +825,9 @@
           return b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), undefined, { numeric: true });
         });
       }
-      VALUE_INDEX[property] = entries;
+      context.values[property] = entries;
     }
-    return VALUE_INDEX[property];
+    return context.values[property];
   }
 
   /** Token spans of the query, so a quoted value counts as one token. */
@@ -731,6 +864,7 @@
   function suggestionsFor(token) {
     var negate = "";
     var raw = token.text;
+    var context = contextFor(token);
     var match = TOKEN_SPLIT.exec(raw);
 
     if (match) {
@@ -742,12 +876,19 @@
       if (!field[2]) return [];
       var op = match[3];
       var partial = match[4].replace(/^"/, "").toLowerCase();
-      return valuesFor(field[1])
-        .filter(function (entry) { return String(entry[0]).toLowerCase().indexOf(partial) !== -1; })
+      var isTag = field[1] === "tags";
+      return valuesFor(context, field[1])
+        .filter(function (entry) {
+          var text = String(entry[0]).toLowerCase();
+          if (text.indexOf(partial) !== -1) return true;
+          // Tag slugs are English; let the reader search by the label they see.
+          return isTag && t("tag." + entry[0]).toLowerCase().indexOf(partial) !== -1;
+        })
         .slice(0, 12)
         .map(function (entry) {
           return { insert: negate + field[0] + op + quoteIfNeeded(entry[0]),
-                   label: String(entry[0]), count: entry[1], kind: t("sg.value") };
+                   label: String(entry[0]), count: entry[1],
+                   kind: isTag ? t("tag." + entry[0]) : t("sg.value") };
         });
     }
 
@@ -758,7 +899,7 @@
       .slice(0, 12)
       .map(function (f) {
         return { insert: negate + f[0] + ":", label: f[0] + ":",
-                 count: f[2] ? valuesFor(f[1]).length : null,
+                 count: f[2] ? valuesFor(context, f[1]).length : null,
                  kind: f[2] ? t("sg.field") : t("sg.freeText") };
       });
   }
@@ -882,9 +1023,9 @@
 
   function isOpen(row) { return row.state === "open"; }
 
-  function riskRank(rows) {
-    if (rows.some(function (r) { return r.risk === "high"; })) return "high";
-    if (rows.some(function (r) { return r.risk === "medium"; })) return "medium";
+  function interestRank(rows) {
+    if (rows.some(function (r) { return r.interest === "high"; })) return "high";
+    if (rows.some(function (r) { return r.interest === "medium"; })) return "medium";
     return "low";
   }
 
@@ -917,7 +1058,8 @@
         expanded + '">' +
         '<span class="g-caret">' + (expanded ? "\u25be" : "\u25b8") + "</span>" +
         '<span class="g-name">' + esc(name) + "</span>" +
-        '<span class="pill ' + esc(riskRank(groupRowsList)) + '">' + esc(riskRank(groupRowsList)) + "</span>" +
+        '<span class="pill ' + esc(interestRank(groupRowsList)) + '">' +
+        esc(levelLabel(interestRank(groupRowsList))) + "</span>" +
         '<span class="g-count"><b>' + hosts.length + "</b> " + esc(t("targets.hosts")) + "</span>" +
         '<span class="g-count"><b>' + groupRowsList.length + "</b> " + esc(t("targets.ports")) + "</span>" +
         '<span class="g-products">' +
@@ -987,6 +1129,13 @@
     return entries;
   }
 
+  /** What a stored value looks like to the reader. */
+  function displayValue(key, value) {
+    if (key === "interest") return levelLabel(value) || value;
+    if (key === "tags") return t("tag." + value);
+    return value;
+  }
+
   function renderFilterList() {
     var key = state.menu;
     if (!key) return;
@@ -999,7 +1148,7 @@
           return '<label' + (entry[1] === 0 ? ' class="stale"' : "") + '>' +
             '<input type="checkbox" value="' + esc(entry[0]) + '"' +
             (chosen.has(entry[0]) ? " checked" : "") + ">" +
-            '<span class="v">' + esc(entry[0]) + "</span>" +
+            '<span class="v">' + esc(displayValue(key, entry[0])) + "</span>" +
             '<span class="n">' + entry[1] + "</span></label>";
         }).join("")
       : '<p class="fm-empty">' + esc(t("fm.noMatch", { q: search })) + "</p>";
@@ -1062,7 +1211,8 @@
     bar.innerHTML = '<span class="af-label">' + esc(t("filters.label")) + "</span>" +
       keys.map(function (key) {
         var chosen = Array.from(state.filters[key]);
-        var text = chosen.length <= 2 ? chosen.join(", ")
+        var text = chosen.length <= 2
+          ? chosen.map(function (v) { return displayValue(key, v); }).join(", ")
           : t("filters.values", { n: chosen.length });
         return '<button class="af" data-drop="' + esc(key) + '">' +
           "<b>" + esc(columnLabel(key)) + ":</b> " + esc(text) + " \u2715</button>";
@@ -1082,7 +1232,8 @@
     { key: "product", cls: "trunc" },
     { key: "version", cls: "mono trunc" },
     { key: "extrainfo", cls: "trunc" },
-    { key: "risk" },
+    { key: "interest" },
+    { key: "tags", cls: "tags" },
     { key: "os", cls: "trunc" }
   ];
 
@@ -1157,8 +1308,19 @@
       var cells = COLUMNS.map(function (column) {
         var value = row[column.key];
         if (column.key === "state") return "<td>" + stateDot(value) + "</td>";
-        if (column.key === "risk") {
-          return '<td><span class="pill ' + esc(value) + '">' + esc(value) + "</span></td>";
+        if (column.key === "interest") {
+          return '<td><span class="pill ' + esc(value) + '">' +
+            esc(levelLabel(value)) + "</span></td>";
+        }
+        if (column.key === "tags") {
+          if (!value.length) return '<td class="tags"><span class="muted">—</span></td>';
+          var shown = value.slice(0, 3).map(function (tag) {
+            return '<span class="tag">' + esc(t("tag." + tag)) + "</span>";
+          }).join("");
+          if (value.length > 3) shown += '<span class="tag more">+' + (value.length - 3) + "</span>";
+          return '<td class="tags" title="' +
+            esc(value.map(function (tag) { return t("tag." + tag); }).join(", ")) +
+            '">' + shown + "</td>";
         }
         return '<td class="' + (column.cls || "") + '" title="' + esc(dash(value)) + '">' +
           esc(dash(value)) + "</td>";
@@ -1185,15 +1347,21 @@
     var port = row.port;
     var blocks = [];
 
-    if (port && port.risk_reasons.length) {
+    if (port && port.reasons.length) {
       // The reason a row is coloured belongs at the top, not buried under
       // fifteen fields the reader has to scroll past first.  Reasons arrive
       // from the parser in both languages.
-      blocks.push('<section class="why ' + esc(port.risk) + '"><h4>' +
-        esc(t("drawer.why", { risk: port.risk })) + "</h4><ul>" +
-        port.risk_reasons.map(function (reason) {
+      blocks.push('<section class="why ' + esc(port.interest) + '"><h4>' +
+        esc(t("drawer.why", { level: levelLabel(port.interest) })) + "</h4><ul>" +
+        port.reasons.map(function (reason) {
           return "<li>" + esc(reason[lang] || reason.en || reason) + "</li>";
-        }).join("") + "</ul></section>");
+        }).join("") + "</ul>" +
+        ((port.tags || []).length
+          ? '<div class="why-tags">' + port.tags.map(function (tag) {
+              return '<button class="tag" data-tag="' + esc(tag) + '">' +
+                esc(t("tag." + tag)) + "</button>";
+            }).join("") + "</div>"
+          : "") + "</section>");
     }
 
     if (port) {
@@ -1234,7 +1402,7 @@
       blocks.push("<section><h4>" + esc(t("drawer.otherPorts")) +
         '</h4><div class="chips">' +
         otherPorts.map(function (p) {
-          return '<button class="portchip ' + esc(p.risk) + '" data-goto="' +
+          return '<button class="portchip ' + esc(p.interest) + '" data-goto="' +
             esc(host.ip) + "|" + esc(p.port) + "|" + esc(p.protocol) + '">' +
             esc(p.port) + "/" + esc(p.protocol) +
             (p.service.name ? " " + esc(p.service.name) : "") + "</button>";
@@ -1285,9 +1453,9 @@
       port && port.service && port.service.name ? port.service.name : null
     ].filter(Boolean).join(" · ") || t("drawer.noPorts");
 
-    var badge = el("drawer-risk");
-    badge.textContent = port ? port.risk : "—";
-    badge.className = "pill " + (port ? port.risk : "low");
+    var badge = el("drawer-interest");
+    badge.textContent = port ? levelLabel(port.interest) : "—";
+    badge.className = "pill " + (port ? port.interest : "low");
 
     el("drawer-body").innerHTML = drawerBody(row);
     el("drawer-body").scrollTop = 0;
@@ -1410,7 +1578,7 @@
       lines.push(COLUMNS.map(function (column) {
         var value = row[column.key];
         if (value === null || value === undefined) return "";
-        value = String(value);
+        value = Array.isArray(value) ? value.join(" ") : String(value);
         return /[";\n]/.test(value) ? '"' + value.replace(/"/g, '""') + '"' : value;
       }).join(";"));
     });
@@ -1493,6 +1661,13 @@
 
     TABS.forEach(function (tab) {
       el("tab-" + tab).addEventListener("click", function () { showTab(tab); });
+    });
+
+    el("kpis").addEventListener("click", function (event) {
+      var card = event.target.closest("button[data-kpi]");
+      if (!card) return;
+      var terms = KPI_TERMS[parseInt(card.getAttribute("data-kpi"), 10)];
+      if (terms) applyTerms(terms);
     });
 
     el("group-by").addEventListener("change", function () {
@@ -1675,6 +1850,8 @@
 
     // Jumping between the ports of one host is the commonest move in triage.
     el("drawer-body").addEventListener("click", function (event) {
+      var tag = event.target.closest("button[data-tag]");
+      if (tag) { applyTerms([["tag", tag.getAttribute("data-tag")]]); return; }
       var chip = event.target.closest("button[data-goto]");
       if (!chip) return;
       var index = findVisible(chip.getAttribute("data-goto"));

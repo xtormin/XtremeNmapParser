@@ -3,10 +3,11 @@
 import pytest
 
 from xnp.report_model import (
-    HIGH_RISK_PORTS,
-    HIGH_RISK_SERVICES,
-    MEDIUM_RISK_PORTS,
-    MEDIUM_RISK_SERVICES,
+    HIGH_INTEREST_PORTS,
+    HIGH_INTEREST_SERVICES,
+    MEDIUM_INTEREST_PORTS,
+    MEDIUM_INTEREST_SERVICES,
+    TAGS,
     build_hosts,
     classify_port,
     host_to_dict,
@@ -37,12 +38,12 @@ def report(xml):
     (62078, None, "low"),
 ])
 def test_ports_are_classified_by_number_and_service(port, service, expected):
-    assert classify_port(port, service, None)["risk"] == expected
+    assert classify_port(port, service, None)["interest"] == expected
 
 
 def test_a_database_on_an_unusual_port_is_still_caught():
     """The port number is not in the table, but -sV named the service."""
-    assert classify_port(31337, "mongodb", None)["risk"] == "high"
+    assert classify_port(31337, "mongodb", None)["interest"] == "high"
 
 
 def test_every_classification_carries_its_reason():
@@ -61,13 +62,30 @@ def test_reasons_are_translated_not_duplicated():
     assert "SMB" in reason["en"] and "SMB" in reason["es"]
 
 
-@pytest.mark.parametrize("table", [HIGH_RISK_PORTS, HIGH_RISK_SERVICES,
-                                   MEDIUM_RISK_PORTS, MEDIUM_RISK_SERVICES])
-def test_every_risk_entry_carries_both_languages(table):
+@pytest.mark.parametrize("table", [HIGH_INTEREST_PORTS, HIGH_INTEREST_SERVICES,
+                                   MEDIUM_INTEREST_PORTS, MEDIUM_INTEREST_SERVICES])
+def test_every_risk_entry_carries_both_languages_and_tags(table):
     """A half-translated table ships English prose into a Spanish report."""
     for key, entry in table.items():
-        assert isinstance(entry, tuple) and len(entry) == 2, key
-        assert all(isinstance(text, str) and text.strip() for text in entry), key
+        assert isinstance(entry, tuple) and len(entry) == 3, key
+        assert all(isinstance(text, str) and text.strip() for text in entry[:2]), key
+        assert entry[2], f"{key} carries no tag, so it cannot be grouped"
+
+
+@pytest.mark.parametrize("table", [HIGH_INTEREST_PORTS, HIGH_INTEREST_SERVICES,
+                                   MEDIUM_INTEREST_PORTS, MEDIUM_INTEREST_SERVICES])
+def test_every_tag_is_in_the_vocabulary(table):
+    """A typo in a tag would silently create a category of one."""
+    for key, entry in table.items():
+        for tag in entry[2]:
+            assert tag in TAGS, f"{key}: unknown tag {tag!r}"
+
+
+def test_the_vocabulary_has_no_dead_entries():
+    used = {tag for table in (HIGH_INTEREST_PORTS, HIGH_INTEREST_SERVICES,
+                              MEDIUM_INTEREST_PORTS, MEDIUM_INTEREST_SERVICES)
+            for entry in table.values() for tag in entry[2]}
+    assert set(TAGS) == used, "every tag is used, and every used tag is declared"
 
 
 def test_tls_demotes_a_cleartext_http_service():
@@ -75,12 +93,37 @@ def test_tls_demotes_a_cleartext_http_service():
     tunnelled = classify_port(443, "http", "ssl")
     assert plain["cleartext"] is True
     assert tunnelled["cleartext"] is False
-    assert tunnelled["risk"] == "low"
+    assert tunnelled["interest"] == "low"
 
 
 def test_an_unknown_port_and_service_is_low_with_no_reasons():
     result = classify_port(41234, None, None)
-    assert result == {"risk": "low", "reasons": [], "cleartext": False}
+    assert result == {"interest": "low", "reasons": [], "tags": [], "cleartext": False}
+
+
+# --- Tags -------------------------------------------------------------------
+
+def test_reasons_contribute_their_tags():
+    """The sentence explains one port; the tag is what groups a hundred."""
+    result = classify_port(11211, "memcached", None)
+    assert set(result["tags"]) >= {"database", "no-auth", "amplification"}
+
+
+def test_tags_are_deduplicated_across_reasons():
+    """The port table and the service table often agree; say it once."""
+    tags = classify_port(23, "telnet", None)["tags"]
+    assert len(tags) == len(set(tags))
+
+
+def test_an_unencrypted_port_is_tagged_even_when_no_reason_says_so():
+    """cleartext is computed separately, so the tag must not depend on prose."""
+    result = classify_port(3306, "mysql", None)
+    assert result["cleartext"] is True
+    assert "cleartext-data" in result["tags"]
+
+
+def test_tls_leaves_no_cleartext_tag():
+    assert "cleartext-data" not in classify_port(443, "http", "ssl")["tags"]
 
 
 # --- Host mapping -----------------------------------------------------------

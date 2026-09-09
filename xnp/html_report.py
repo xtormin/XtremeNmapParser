@@ -152,8 +152,9 @@ def payload_from_dataframe(df: pd.DataFrame, title: Optional[str] = None,
                 "ostype": None, "devicetype": None, "hostname": None, "cpe": [],
             },
             "scripts": ([{"id": "script", "output": scripts, "tables": []}] if scripts else []),
-            "risk": classification["risk"],
-            "risk_reasons": classification["reasons"],
+            "interest": classification["interest"],
+            "reasons": classification["reasons"],
+            "tags": classification["tags"],
             "cleartext": classification["cleartext"],
         })
 

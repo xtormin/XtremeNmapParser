@@ -137,9 +137,9 @@ def test_the_fallback_still_classifies_risk(xml, tmp_path):
     df_to_html(df, str(target))
 
     parsed = embedded_payload(target.read_text(encoding="utf-8"))
-    risks = {port["risk"] for host in parsed["hosts"] for port in host["ports"]}
-    assert risks <= {"high", "medium", "low"}
-    assert risks != {"low"}, "the fixture has ssh and http on their usual ports"
+    levels = {port["interest"] for host in parsed["hosts"] for port in host["ports"]}
+    assert levels <= {"high", "medium", "low"}
+    assert levels != {"low"}, "the fixture has ssh and http on their usual ports"
 
 
 def test_the_rich_context_beats_the_fallback(xml, tmp_path, report):
@@ -206,7 +206,7 @@ def test_an_english_title_falls_back_to_the_spanish_one(report):
     assert payload["title_en"] == "Solo uno"
 
 
-def test_the_header_chips_are_built_in_the_browser(report):
+def test_the_scan_metadata_chips_are_built_in_the_browser(report):
     """They used to be baked in Spanish by Python; the report is bilingual now."""
     document = html_report.render(html_report.build_payload(
         [report("dup_a"), report("dup_b")], sources=["dup_a.xml", "dup_b.xml"], merge=True))

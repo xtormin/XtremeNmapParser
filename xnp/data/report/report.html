@@ -16,7 +16,11 @@
       <h1 id="brand-title">{{TITLE}}</h1>
       <span class="tag">xnp {{VERSION}}</span>
     </div>
-    <div class="meta" id="meta"></div>
+    <div class="tabs" role="tablist">
+      <button id="tab-summary" role="tab" aria-selected="true" type="button" data-i18n="tab.summary"></button>
+      <button id="tab-targets" role="tab" aria-selected="false" type="button" data-i18n="tab.targets"></button>
+      <button id="tab-data" role="tab" aria-selected="false" type="button" data-i18n="tab.data"></button>
+    </div>
     <div class="switches">
       <select id="lang-select" aria-label="Idioma / Language">
         <option value="es">ES</option>
@@ -30,11 +34,6 @@
 <div class="wrap">
 
   <div class="bar">
-    <div class="tabs" role="tablist">
-      <button id="tab-summary" role="tab" aria-selected="true" type="button" data-i18n="tab.summary"></button>
-      <button id="tab-targets" role="tab" aria-selected="false" type="button" data-i18n="tab.targets"></button>
-      <button id="tab-data" role="tab" aria-selected="false" type="button" data-i18n="tab.data"></button>
-    </div>
     <div class="query">
       <span class="prompt">&gt;</span>
       <label for="q" style="position:absolute;left:-9999px" data-i18n="q.placeholder"></label>
@@ -50,8 +49,8 @@
   <section id="panel-summary" class="panel active" role="tabpanel">
     <div id="kpis" class="kpis"></div>
     <div class="charts">
+      <div class="card" id="card-tags"><h2 data-i18n="chart.tags"></h2><div class="chart-box"><canvas id="chart-tags"></canvas></div></div>
       <div class="card" id="card-states"><h2 data-i18n="chart.states"></h2><div class="chart-box"><canvas id="chart-states"></canvas></div></div>
-      <div class="card" id="card-risk"><h2 data-i18n="chart.risk"></h2><div class="chart-box"><canvas id="chart-risk"></canvas></div></div>
       <div class="card" id="card-services"><h2 data-i18n="chart.services"></h2><div class="chart-box"><canvas id="chart-services"></canvas></div></div>
       <div class="card" id="card-ports"><h2 data-i18n="chart.ports"></h2><div class="chart-box"><canvas id="chart-ports"></canvas></div></div>
       <div class="card" id="card-hosts"><h2 data-i18n="chart.hosts"></h2><div class="chart-box"><canvas id="chart-hosts"></canvas></div></div>
@@ -95,9 +94,8 @@
   </section>
 
   <footer>
+    <div class="meta" id="meta"></div>
     <span id="foot-generated"></span>
-    <span id="foot-charts"></span>
-    <span id="foot-offline"></span>
   </footer>
 </div>
 
@@ -123,7 +121,7 @@
       <h2 id="drawer-title"></h2>
       <p id="drawer-sub"></p>
     </div>
-    <span id="drawer-risk" class="pill low"></span>
+    <span id="drawer-interest" class="pill low"></span>
     <button id="drawer-close" type="button" data-i18n-aria="drawer.close">✕</button>
   </header>
   <div id="drawer-body"></div>

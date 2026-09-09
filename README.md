@@ -124,7 +124,8 @@ the Chart.js build are all inlined, so the report opens from a USB stick on an
 air-gapped laptop and can be attached to an email as-is.
 
 **Resumen** answers "what is exposed" at a glance: five headline figures and six
-charts covering port states, risk, services, ports, hosts and OS families. Every
+charts covering the reasons ports were flagged, port states, services, ports,
+hosts and OS families. Every
 mark is a way in — click the `22/tcp` bar, or the `high` arc, or a legend entry,
 and you land on the Datos tab filtered to exactly that. The ports chart sets the
 port and the protocol together, since `22/tcp` is two columns' worth.
@@ -154,14 +155,14 @@ still pick rather than only what you already picked. Active filters appear as
 chips above the table and clear individually.
 
 Clicking a row slides out a side panel on the right with the whole record: why
-the row carries its risk label, port and service detail, host detail, OS matches,
+the row carries its interest label, port and service detail, host detail, OS matches,
 CPEs, the other ports on the same host as clickable chips, the raw NSE output and
 the traceroute. `↑` `↓` walk the rows without closing it, `Esc` closes it.
 
 Both tabs share one filter. The query bar takes a small language:
 
 ```
-state:open service:http port<1024 -risk:low
+state:open service:http port<1024 -interest:low
 ip=10.0.0.14 script:smb
 "Apache Tomcat"
 ```
@@ -169,13 +170,13 @@ ip=10.0.0.14 script:smb
 Type a field and `:` and it offers the values that are actually in this scan,
 with their counts — `port:` lists the ports found, `service:` the services
 identified, and so on for `ip` `host` `proto` `state` `reason` `product`
-`version` `os` `family` `risk` `source`. `↑` `↓` `Enter` to pick, and a value
+`version` `os` `family` `interest` `tag` `cleartext` `source`. `↑` `↓` `Enter` to pick, and a value
 containing spaces comes back quoted for you. `cpe` `script` and `extrainfo` are
 searched as free text rather than picked from a list.
 
 Operators: `:` (contains) `=` (exact) `<` `<=` `>` `>=` `!=`; prefix `-` negates;
 a bare word searches the whole row. The query and the column filters compose, and they apply to all three
-tabs at once — narrow to `risk:high -state:closed` on Datos and the Servicios tab
+tabs at once — narrow to `interest:high -state:closed` on Datos and the Servicios tab
 hands you target lists for exactly that set. Every figure, chart and count
 recomputes from the filtered rows, so nothing on screen can disagree with
 anything else. `Exportar selección a CSV` saves what you are currently looking at.
@@ -192,16 +193,26 @@ most service detail. The header says how many files went in, and the table grows
 an `Origen` column — with its own filter — so you can still tell which scan a row
 came from. Without `-M` you get one report per XML instead.
 
-### About the risk colouring
+### About the interest label and the tags
 
-Ports are labelled `high`, `medium` or `low` from a table of well-known exposure
-(see `HIGH_RISK_PORTS` in [report_model.py](xnp%2Freport_model.py)), matched on
-both the port number and the service name so a database moved off its default
-port is still caught once `-sV` has named it. **This is a triage aid, not a
-vulnerability assessment**: a port is `high` because finding it open is usually
-worth a look, not because this host is known to be vulnerable. Every label
-carries the reason that produced it, shown in the expanded row, so you can
-disagree with it.
+Every open port gets an interest level — `alto` / `medio` / `bajo` — and a set of
+tags saying what kind of thing it is: `base de datos`, `sin autenticación`,
+`credenciales en claro`, `administración remota`, and a dozen more. Both come
+from a lookup keyed on **both** the port number and the service name, so a
+database moved off its default port is still caught once `-sV` has named it (see
+`HIGH_INTEREST_PORTS` in [report_model.py](xnp%2Freport_model.py)).
+
+The tags are what make a hundred rows summarisable: the Resumen tab charts them,
+clicking one filters to it, and `tag:` in the query bar completes them. The
+sentence behind each tag stays in the side panel, so you can always see *why* a
+port was flagged and disagree with it.
+
+**It is called interest, not risk, on purpose.** The lookup reads only the port
+number, the service name, and whether TLS wraps it. It does not read the
+version, the CVE history, the NSE output, whether the host faces the internet,
+or even whether the port is open — a `filtered` 3306 is still labelled `alto`,
+because the label describes what that protocol is, not what this host is exposed
+to. It says what deserves a look; it does not say what is vulnerable.
 
 ### Language
 
@@ -212,8 +223,9 @@ chips, the column headers and the footer are all filled in at runtime, and
 `test_the_markup_carries_no_untranslated_prose` fails the build if a hard-coded
 string sneaks back in.
 
-That includes the risk reasons, which come from the parser rather than the page:
-`HIGH_RISK_PORTS` and friends in [report_model.py](xnp%2Freport_model.py) hold
+That includes the reasons behind each label, which come from the parser rather
+than the page: `HIGH_INTEREST_PORTS` and friends in
+[report_model.py](xnp%2Freport_model.py) hold
 `(english, spanish)` pairs, so the prose explaining *why* something is flagged —
 the part most worth reading — is translated rather than left in whichever
 language the source file happens to be written in.
@@ -233,7 +245,7 @@ The report follows the reader's system theme and remembers an explicit choice in
 interactive chrome hidden.
 
 Colour carries meaning here, so it is constrained rather than decorative. Red,
-amber and green belong to risk and port state; the interaction accent is cyan
+amber and green belong to the interest level and the port state; the accent is cyan
 precisely so that "you can click this" never looks like "this is dangerous".
 Ink is a soft charcoal rather than pure black, and the dark theme sets body text
 in a soft grey rather than pure white — full contrast over full contrast buzzes
@@ -279,7 +291,11 @@ ruff check xnp tests xnp.py
     and dark themes, part of the default `-oF` set. Three tabs: headline figures
     and charts, open ports grouped by service with copyable target lists, and the
     full table with Excel-style column filters, a query language and a row detail
-    side panel.
+    side panel. Every figure, bar and slice filters the table on click and writes
+    itself into the query bar.
+  - Ports carry an *interest* level and a set of tags (`database`, `no-auth`,
+    `cleartext-creds`, …) rather than a "risk" score: the label says what
+    deserves a look, and deliberately claims nothing about vulnerability.
   - The HTML report reaches data the other formats never saw. The writers used to
     receive only the eleven flat columns, so the nmap command line, OS detection,
     CPEs, port state reasons and structured NSE output were parsed and then thrown
@@ -290,7 +306,7 @@ ruff check xnp tests xnp.py
   - Chart.js 4.5.1 (MIT) is vendored under `xnp/data/report/vendor/`; the report
     makes no network requests.
   - The report's palette is audited against WCAG AA by the test suite, and the
-    interaction accent no longer shares a hue with the risk colours.
+    interaction accent no longer shares a hue with the level colours.
   - A directory run no longer stops at the first file that fails validation: it
     reports the file, skips it and carries on, then names everything it skipped.
     A single named file (`-f`) still fails the run.
@@ -300,7 +316,8 @@ ruff check xnp tests xnp.py
     with its intended type on a machine that has never seen it and never reaches
     the network.
   - The report is bilingual (Spanish/English), switchable next to the theme
-    toggle. Risk reasons are translated at the source rather than in the page.
+    toggle. The reasons behind each label are translated at the source rather
+    than in the page.
 - **XNP v1.1.0**
   - XNP is now an installable package (`pip install .`) with an `xnp` command, and
     runs from any directory. Previously the configuration was read from a relative

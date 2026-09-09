@@ -12,128 +12,173 @@ chart can never disagree with the rows the reader is looking at.
 
 from typing import Optional
 
+#: The tag vocabulary.  A reason explains one port in a sentence; a tag says
+#: what *kind* of thing it is, which is what makes a hundred rows summarisable.
+#: Ids are language-neutral slugs; their labels live in the report's I18N table.
+TAGS = (
+    "cleartext-creds",   # the protocol carries credentials in the clear
+    "cleartext-data",    # the protocol carries its data in the clear
+    "remote-admin",      # a way to drive the machine from elsewhere
+    "database",          # a data store answering on the network
+    "file-share",        # files served over the network
+    "no-auth",           # commonly reachable without credentials at all
+    "enumeration",       # hands out inventory about the host or the domain
+    "directory",         # directory service
+    "oob-management",    # out-of-band management, below the operating system
+    "known-target",      # a service with a long public exploitation history
+    "code-exec",         # exposes code execution by design
+    "container",         # container runtime control plane
+    "display",           # a graphical display exported over the network
+    "amplification",     # usable as a UDP reflector
+    "web",               # an HTTP surface worth its own testing
+    "mail",              # mail transport or retrieval
+    "dns",               # name resolution
+)
+
 #: Services whose exposure is worth flagging on its own: remote administration,
 #: data stores that historically ship unauthenticated, and cleartext credential
 #: protocols.  Keyed by port because a service name is often absent (-sS only).
 #:
 #: This is a triage aid, not a vulnerability assessment: a port lands here
-#: because *finding it open on an internet-facing host is usually a finding*,
-#: not because this host is known to be vulnerable.  Every classification is
-#: reported alongside the reason that produced it so a reader can disagree.
+#: because *finding it open on an internet-facing host is usually worth a look*,
+#: not because this host is known to be vulnerable.  Nothing here reads the
+#: version, the NSE output or the port state, so every classification is
+#: reported alongside the reason that produced it and can be overruled.
 #:
-#: Reasons are ``(english, spanish)``: the HTML report is bilingual, and the
-#: prose explaining why something is flagged is the part most worth reading, so
-#: it travels in both languages rather than only the one this file is written in.
-HIGH_RISK_PORTS = {
-    21: ("FTP, credentials in cleartext", "FTP, credenciales en claro"),
-    23: ("Telnet, credentials in cleartext", "Telnet, credenciales en claro"),
-    69: ("TFTP, no authentication", "TFTP, sin autenticación"),
-    111: ("rpcbind, enumerates RPC services", "rpcbind, enumera servicios RPC"),
-    135: ("MSRPC endpoint mapper", "Mapeador de extremos MSRPC"),
-    137: ("NetBIOS name service", "Servicio de nombres NetBIOS"),
-    138: ("NetBIOS datagram service", "Servicio de datagramas NetBIOS"),
-    139: ("NetBIOS session service (SMB)", "Servicio de sesión NetBIOS (SMB)"),
+#: Entries are ``(english, spanish, tags)``.  The prose is bilingual because the
+#: part explaining why something is flagged is the part most worth reading.
+HIGH_INTEREST_PORTS = {
+    21: ("FTP, credentials in cleartext", "FTP, credenciales en claro",
+         ("cleartext-creds", "file-share")),
+    23: ("Telnet, credentials in cleartext", "Telnet, credenciales en claro",
+         ("cleartext-creds", "remote-admin")),
+    69: ("TFTP, no authentication", "TFTP, sin autenticación",
+         ("no-auth", "file-share")),
+    111: ("rpcbind, enumerates RPC services", "rpcbind, enumera servicios RPC",
+          ("enumeration",)),
+    135: ("MSRPC endpoint mapper", "Mapeador de extremos MSRPC", ("enumeration",)),
+    137: ("NetBIOS name service", "Servicio de nombres NetBIOS", ("enumeration",)),
+    138: ("NetBIOS datagram service", "Servicio de datagramas NetBIOS", ("enumeration",)),
+    139: ("NetBIOS session service (SMB)", "Servicio de sesión NetBIOS (SMB)",
+          ("file-share", "enumeration")),
     161: ("SNMP, often left on a default community string",
-          "SNMP, a menudo con la comunidad por defecto"),
-    389: ("LDAP without TLS", "LDAP sin TLS"),
+          "SNMP, a menudo con la comunidad por defecto", ("no-auth", "enumeration")),
+    389: ("LDAP without TLS", "LDAP sin TLS", ("directory", "cleartext-data")),
     445: ("SMB, a standing lateral movement path",
-          "SMB, vía habitual de movimiento lateral"),
-    512: ("rexec, credentials in cleartext", "rexec, credenciales en claro"),
-    513: ("rlogin, credentials in cleartext", "rlogin, credenciales en claro"),
-    514: ("rsh, host-based trust", "rsh, confianza basada en el host"),
-    623: ("IPMI, out-of-band management", "IPMI, gestión fuera de banda"),
+          "SMB, vía habitual de movimiento lateral", ("file-share", "known-target")),
+    512: ("rexec, credentials in cleartext", "rexec, credenciales en claro",
+          ("cleartext-creds", "remote-admin")),
+    513: ("rlogin, credentials in cleartext", "rlogin, credenciales en claro",
+          ("cleartext-creds", "remote-admin")),
+    514: ("rsh, host-based trust", "rsh, confianza basada en el host",
+          ("remote-admin", "no-auth")),
+    623: ("IPMI, out-of-band management", "IPMI, gestión fuera de banda",
+          ("oob-management",)),
     873: ("rsync, frequently exported without authentication",
-          "rsync, a menudo exportado sin autenticación"),
-    1433: ("Microsoft SQL Server exposed", "Microsoft SQL Server expuesto"),
-    1521: ("Oracle TNS listener exposed", "Listener TNS de Oracle expuesto"),
-    2049: ("NFS export", "Exportación NFS"),
+          "rsync, a menudo exportado sin autenticación", ("file-share", "no-auth")),
+    1433: ("Microsoft SQL Server exposed", "Microsoft SQL Server expuesto", ("database",)),
+    1521: ("Oracle TNS listener exposed", "Listener TNS de Oracle expuesto", ("database",)),
+    2049: ("NFS export", "Exportación NFS", ("file-share",)),
     2375: ("Docker API without TLS, equivalent to root",
-           "API de Docker sin TLS, equivale a root"),
+           "API de Docker sin TLS, equivale a root", ("container", "no-auth")),
     2376: ("Docker API, root-equivalent if the client cert is weak",
-           "API de Docker, equivale a root si el certificado es débil"),
-    3306: ("MySQL exposed", "MySQL expuesto"),
+           "API de Docker, equivale a root si el certificado es débil", ("container",)),
+    3306: ("MySQL exposed", "MySQL expuesto", ("database",)),
     3389: ("RDP, a standing brute-force and CVE target",
-           "RDP, objetivo habitual de fuerza bruta y CVE"),
-    4444: ("Common implant/handler port", "Puerto habitual de implante o handler"),
-    5432: ("PostgreSQL exposed", "PostgreSQL expuesto"),
-    5900: ("VNC, often without a password", "VNC, a menudo sin contraseña"),
-    5901: ("VNC, often without a password", "VNC, a menudo sin contraseña"),
-    5902: ("VNC, often without a password", "VNC, a menudo sin contraseña"),
-    5984: ("CouchDB exposed", "CouchDB expuesto"),
-    6379: ("Redis, unauthenticated by default", "Redis, sin autenticación por defecto"),
+           "RDP, objetivo habitual de fuerza bruta y CVE",
+           ("remote-admin", "known-target")),
+    4444: ("Common implant/handler port", "Puerto habitual de implante o handler",
+           ("known-target",)),
+    5432: ("PostgreSQL exposed", "PostgreSQL expuesto", ("database",)),
+    5900: ("VNC, often without a password", "VNC, a menudo sin contraseña",
+           ("remote-admin", "no-auth")),
+    5901: ("VNC, often without a password", "VNC, a menudo sin contraseña",
+           ("remote-admin", "no-auth")),
+    5902: ("VNC, often without a password", "VNC, a menudo sin contraseña",
+           ("remote-admin", "no-auth")),
+    5984: ("CouchDB exposed", "CouchDB expuesto", ("database",)),
+    6379: ("Redis, unauthenticated by default", "Redis, sin autenticación por defecto",
+           ("database", "no-auth")),
     7001: ("WebLogic, a recurrent deserialisation target",
-           "WebLogic, objetivo recurrente de deserialización"),
+           "WebLogic, objetivo recurrente de deserialización", ("web", "known-target")),
     9200: ("Elasticsearch, unauthenticated by default",
-           "Elasticsearch, sin autenticación por defecto"),
-    9300: ("Elasticsearch transport", "Transporte de Elasticsearch"),
+           "Elasticsearch, sin autenticación por defecto", ("database", "no-auth")),
+    9300: ("Elasticsearch transport", "Transporte de Elasticsearch", ("database",)),
     11211: ("Memcached, unauthenticated and a UDP amplifier",
-            "Memcached, sin autenticación y amplificador UDP"),
-    27017: ("MongoDB exposed", "MongoDB expuesto"),
-    50000: ("SAP / DB2 management", "Gestión de SAP / DB2"),
+            "Memcached, sin autenticación y amplificador UDP",
+            ("database", "no-auth", "amplification")),
+    27017: ("MongoDB exposed", "MongoDB expuesto", ("database",)),
+    50000: ("SAP / DB2 management", "Gestión de SAP / DB2", ("oob-management",)),
 }
 
 #: Same idea, keyed by the service name nmap reports, so a database moved off
 #: its default port is still caught when -sV identified it.
-HIGH_RISK_SERVICES = {
-    "telnet": HIGH_RISK_PORTS[23],
-    "ftp": HIGH_RISK_PORTS[21],
-    "tftp": HIGH_RISK_PORTS[69],
-    "rsh": HIGH_RISK_PORTS[514],
-    "rlogin": HIGH_RISK_PORTS[513],
-    "exec": HIGH_RISK_PORTS[512],
-    "vnc": HIGH_RISK_PORTS[5900],
-    "ms-wbt-server": HIGH_RISK_PORTS[3389],
-    "microsoft-ds": HIGH_RISK_PORTS[445],
-    "netbios-ssn": ("SMB over NetBIOS", "SMB sobre NetBIOS"),
-    "mysql": HIGH_RISK_PORTS[3306],
-    "ms-sql-s": HIGH_RISK_PORTS[1433],
-    "postgresql": HIGH_RISK_PORTS[5432],
-    "mongodb": HIGH_RISK_PORTS[27017],
-    "redis": HIGH_RISK_PORTS[6379],
-    "memcached": HIGH_RISK_PORTS[11211],
-    "elasticsearch": HIGH_RISK_PORTS[9200],
-    "rpcbind": HIGH_RISK_PORTS[111],
-    "snmp": HIGH_RISK_PORTS[161],
-    "ipmi": HIGH_RISK_PORTS[623],
-    "docker": ("Docker API, root-equivalent", "API de Docker, equivale a root"),
-    "x11": ("X11 display exposed", "Display X11 expuesto"),
+HIGH_INTEREST_SERVICES = {
+    "telnet": HIGH_INTEREST_PORTS[23],
+    "ftp": HIGH_INTEREST_PORTS[21],
+    "tftp": HIGH_INTEREST_PORTS[69],
+    "rsh": HIGH_INTEREST_PORTS[514],
+    "rlogin": HIGH_INTEREST_PORTS[513],
+    "exec": HIGH_INTEREST_PORTS[512],
+    "vnc": HIGH_INTEREST_PORTS[5900],
+    "ms-wbt-server": HIGH_INTEREST_PORTS[3389],
+    "microsoft-ds": HIGH_INTEREST_PORTS[445],
+    "netbios-ssn": ("SMB over NetBIOS", "SMB sobre NetBIOS", ("file-share",)),
+    "mysql": HIGH_INTEREST_PORTS[3306],
+    "ms-sql-s": HIGH_INTEREST_PORTS[1433],
+    "postgresql": HIGH_INTEREST_PORTS[5432],
+    "mongodb": HIGH_INTEREST_PORTS[27017],
+    "redis": HIGH_INTEREST_PORTS[6379],
+    "memcached": HIGH_INTEREST_PORTS[11211],
+    "elasticsearch": HIGH_INTEREST_PORTS[9200],
+    "rpcbind": HIGH_INTEREST_PORTS[111],
+    "snmp": HIGH_INTEREST_PORTS[161],
+    "ipmi": HIGH_INTEREST_PORTS[623],
+    "docker": ("Docker API, root-equivalent", "API de Docker, equivale a root",
+               ("container",)),
+    "x11": ("X11 display exposed", "Display X11 expuesto", ("display", "no-auth")),
     "jdwp": ("Java debug wire protocol, unauthenticated code execution",
-             "Java debug wire protocol, ejecución de código sin autenticación"),
+             "Java debug wire protocol, ejecución de código sin autenticación",
+             ("code-exec", "no-auth")),
 }
 
 #: Remote access and management surface that is normally authenticated: worth
 #: counting, not worth alarming about.
-MEDIUM_RISK_PORTS = {
-    22: ("SSH, remote administration", "SSH, administración remota"),
-    25: ("SMTP", "SMTP"),
-    53: ("DNS", "DNS"),
-    80: ("HTTP without TLS", "HTTP sin TLS"),
-    110: ("POP3 without TLS", "POP3 sin TLS"),
-    143: ("IMAP without TLS", "IMAP sin TLS"),
-    3128: ("HTTP proxy", "Proxy HTTP"),
-    5985: ("WinRM over HTTP", "WinRM sobre HTTP"),
-    5986: ("WinRM over HTTPS", "WinRM sobre HTTPS"),
-    8000: ("HTTP without TLS", "HTTP sin TLS"),
-    8080: ("HTTP without TLS", "HTTP sin TLS"),
-    8081: ("HTTP without TLS", "HTTP sin TLS"),
-    8888: ("HTTP without TLS", "HTTP sin TLS"),
-    10000: ("Webmin", "Webmin"),
+MEDIUM_INTEREST_PORTS = {
+    22: ("SSH, remote administration", "SSH, administración remota", ("remote-admin",)),
+    25: ("SMTP", "SMTP", ("mail",)),
+    53: ("DNS", "DNS", ("dns",)),
+    80: ("HTTP without TLS", "HTTP sin TLS", ("web", "cleartext-data")),
+    110: ("POP3 without TLS", "POP3 sin TLS", ("mail", "cleartext-data")),
+    143: ("IMAP without TLS", "IMAP sin TLS", ("mail", "cleartext-data")),
+    3128: ("HTTP proxy", "Proxy HTTP", ("web",)),
+    5985: ("WinRM over HTTP", "WinRM sobre HTTP", ("remote-admin", "cleartext-data")),
+    5986: ("WinRM over HTTPS", "WinRM sobre HTTPS", ("remote-admin",)),
+    8000: ("HTTP without TLS", "HTTP sin TLS", ("web", "cleartext-data")),
+    8080: ("HTTP without TLS", "HTTP sin TLS", ("web", "cleartext-data")),
+    8081: ("HTTP without TLS", "HTTP sin TLS", ("web", "cleartext-data")),
+    8888: ("HTTP without TLS", "HTTP sin TLS", ("web", "cleartext-data")),
+    10000: ("Webmin", "Webmin", ("remote-admin", "web")),
 }
 
-MEDIUM_RISK_SERVICES = {
-    "ssh": MEDIUM_RISK_PORTS[22],
-    "http": MEDIUM_RISK_PORTS[80],
-    "http-proxy": MEDIUM_RISK_PORTS[3128],
-    "http-alt": MEDIUM_RISK_PORTS[80],
-    "smtp": MEDIUM_RISK_PORTS[25],
-    "pop3": MEDIUM_RISK_PORTS[110],
-    "imap": MEDIUM_RISK_PORTS[143],
-    "domain": MEDIUM_RISK_PORTS[53],
-    "wsman": ("WinRM", "WinRM"),
+MEDIUM_INTEREST_SERVICES = {
+    "ssh": MEDIUM_INTEREST_PORTS[22],
+    "http": MEDIUM_INTEREST_PORTS[80],
+    "http-proxy": MEDIUM_INTEREST_PORTS[3128],
+    "http-alt": MEDIUM_INTEREST_PORTS[80],
+    "smtp": MEDIUM_INTEREST_PORTS[25],
+    "pop3": MEDIUM_INTEREST_PORTS[110],
+    "imap": MEDIUM_INTEREST_PORTS[143],
+    "domain": MEDIUM_INTEREST_PORTS[53],
+    "wsman": ("WinRM", "WinRM", ("remote-admin",)),
 }
 
-#: Service names that carry credentials or session data in the clear.  A port
-#: whose service is tunnelled through TLS (``tunnel="ssl"``) never counts.
+#: Service names whose traffic crosses the wire unencrypted.  Some of them do
+#: carry credentials in the clear (ftp, telnet, rlogin); others simply expose
+#: their data, often with no authentication to send in the first place (redis,
+#: memcached, elasticsearch).  What they share is that anyone on the path reads
+#: what crosses it -- which is the claim this set supports, and the only one.
+#: A port whose service is tunnelled through TLS (``tunnel="ssl"``) never counts.
 CLEARTEXT_SERVICES = {
     "ftp", "telnet", "http", "http-alt", "http-proxy", "imap", "pop3", "smtp",
     "ldap", "rsh", "rlogin", "exec", "snmp", "vnc", "tftp", "rsync", "mysql",
@@ -163,12 +208,18 @@ def _int(value: Optional[str]) -> Optional[int]:
 
 def classify_port(portid: Optional[int], service_name: Optional[str],
                   tunnel: Optional[str]) -> dict:
-    """Return ``{"risk": ..., "reasons": [...], "cleartext": bool}`` for a port.
+    """Return ``{"interest": ..., "reasons": [...], ...}`` for a port.
+
+    "Interest" rather than "risk": nothing here reads the version, the NSE
+    output, the port state or whether the host faces the internet, so the label
+    says how much a port is worth a look, not how dangerous it is.
 
     Both the port number and the service name are consulted so that a database
     listening somewhere unusual is still classified once ``-sV`` has named it.
-    Each reason is ``{"en": ..., "es": ...}`` and is carried into the report: a
-    reader has to be able to see *why* something was painted red and overrule it.
+    Each reason is ``{"en": ..., "es": ...}`` and is carried into the report
+    together with the ``tags`` those reasons contributed: a reader has to see
+    *why* a port was flagged, and a hundred rows only become summarisable once
+    the sentences collapse into categories.
     """
     name = (service_name or "").lower()
     tunnelled = (tunnel or "").lower() == "ssl"
@@ -178,26 +229,36 @@ def classify_port(portid: Optional[int], service_name: Optional[str],
         if entry and entry not in reasons:
             reasons.append(entry)
 
-    add(HIGH_RISK_PORTS.get(portid))
-    add(HIGH_RISK_SERVICES.get(name))
+    add(HIGH_INTEREST_PORTS.get(portid))
+    add(HIGH_INTEREST_SERVICES.get(name))
 
     if reasons:
-        risk = "high"
+        interest = "high"
     else:
-        add(MEDIUM_RISK_PORTS.get(portid))
-        add(MEDIUM_RISK_SERVICES.get(name))
-        risk = "medium" if reasons else "low"
+        add(MEDIUM_INTEREST_PORTS.get(portid))
+        add(MEDIUM_INTEREST_SERVICES.get(name))
+        interest = "medium" if reasons else "low"
 
     cleartext = bool(name in CLEARTEXT_SERVICES and not tunnelled)
-    if tunnelled and risk == "medium":
+    if tunnelled and interest == "medium":
         # An HTTP service behind TLS is just HTTPS; stop calling it cleartext.
         reasons = [r for r in reasons
                    if not any(marker in r[0] or marker in r[1] for marker in _TLS_SENSITIVE)]
         if not reasons:
-            risk = "low"
+            interest = "low"
 
-    return {"risk": risk,
-            "reasons": [{"en": en, "es": es} for en, es in reasons],
+    tags = []
+    for entry in reasons:
+        for tag in entry[2]:
+            if tag not in tags:
+                tags.append(tag)
+    if cleartext and not ({"cleartext-data", "cleartext-creds"} & set(tags)):
+        # Unencrypted for a reason no table entry happened to spell out.
+        tags.append("cleartext-data")
+
+    return {"interest": interest,
+            "reasons": [{"en": en, "es": es} for en, es, _ in reasons],
+            "tags": tags,
             "cleartext": cleartext}
 
 
@@ -259,8 +320,9 @@ def _port_to_dict(port) -> dict:
         "owner": _text(port.owner[0].name) if port.owner else None,
         "service": service,
         "scripts": [_script_to_dict(script) for script in port.script],
-        "risk": classification["risk"],
-        "risk_reasons": classification["reasons"],
+        "interest": classification["interest"],
+        "reasons": classification["reasons"],
+        "tags": classification["tags"],
         "cleartext": classification["cleartext"],
     }
 
