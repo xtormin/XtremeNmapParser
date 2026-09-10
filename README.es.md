@@ -26,7 +26,7 @@
   <a href="#desarrollo">Desarrollo</a>
 </p>
 
-![El informe HTML](resources/images/XtremeNmapParser_html_report.png)
+![El informe HTML](resources/images/XNP_report_html.png)
 
 ---
 
