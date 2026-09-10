@@ -256,3 +256,42 @@ def test_a_missing_font_is_reported_clearly(monkeypatch):
     monkeypatch.setattr(Path, "read_bytes", boom)
     with pytest.raises(XnpError, match="Missing report font"):
         html_report._font_faces()
+
+
+# --- Language ---------------------------------------------------------------
+
+def test_the_payload_carries_the_language_the_report_should_open_in(report):
+    assert html_report.build_payload([report("single_host")], lang="es")["lang"] == "es"
+    assert html_report.build_payload([report("single_host")])["lang"] == "en"
+
+
+def test_a_language_the_report_cannot_show_falls_back(report):
+    """The CLI restricts --lang, but build_payload is a public entry point."""
+    assert html_report.build_payload([report("single_host")], lang="fr")["lang"] == "en"
+
+
+def test_the_dataframe_path_carries_the_language_too(xml):
+    df = NmapParser(xml("single_host")).parse_file()
+    assert html_report.payload_from_dataframe(df, lang="es")["lang"] == "es"
+
+
+def test_the_document_element_declares_the_language(report):
+    """What a screen reader, or anyone with scripting off, gets first."""
+    document = html_report.render(html_report.build_payload([report("single_host")],
+                                                            lang="es"))
+    assert '<html lang="es"' in document
+    assert 'lang="{{LANG}}"' not in document
+
+
+def test_no_spanish_is_left_hard_coded_in_the_markup():
+    """The aria-labels were the last of it; they now come from the I18N table."""
+    markup = html_report.TEMPLATE.read_text(encoding="utf-8")
+    for spanish in ("Sugerencias", "Filtro de columna", "Detalle de la fila"):
+        assert spanish not in markup
+
+
+def test_the_empty_cell_marker_is_translated():
+    """It shows in the column filters and in the exported CSV, in both languages."""
+    script = html_report.SCRIPT.read_text(encoding="utf-8")
+    assert '"blank": "(vacío)"' in script
+    assert '"blank": "(empty)"' in script

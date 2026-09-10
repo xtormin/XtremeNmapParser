@@ -47,6 +47,8 @@ from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 
+from xnp import i18n
+
 #: The level colours are carried over verbatim from the ``coloredlogs`` setup
 #: this module replaced, so a warning looks like it always did.
 THEME = Theme({
@@ -147,18 +149,15 @@ def _symbol(preferred: str, fallback: str) -> str:
     return preferred if supports(preferred) else fallback
 
 
-#: Units that are nouns and so take a plural.  Words like "open", "up" or
-#: "parsed" describe the number instead of naming it, and never change.
-_NOUNS = frozenset({"host", "port", "file", "row", "service"})
-
-
 def _quantity(value, unit: str) -> Text:
-    """``4 hosts`` / ``1 host`` -- the number bright, the unit quiet."""
+    """``4 hosts`` / ``1 host`` -- the number bright, the unit quiet.
+
+    ``unit`` is a message key, not a word: the plural rule belongs with the
+    translation, since Spanish inflects the adjectives too.
+    """
     text = Text()
     text.append(str(value), style="xnp.count")
-    if unit in _NOUNS and value != 1:
-        unit += "s"
-    text.append(f" {unit}", style="xnp.unit")
+    text.append(" " + i18n.t(unit, count=value), style="xnp.unit")
     return text
 
 
@@ -189,7 +188,7 @@ def banner(text: str) -> None:
     console().print(Text(text, style="xnp.banner"), soft_wrap=True)
 
 
-def arguments(rows: Sequence[tuple], title: str = "Arguments") -> None:
+def arguments(rows: Sequence[tuple], title: Optional[str] = None) -> None:
     """Show the run's settings.
 
     ``rows`` are ``(label, value)`` pairs, **already formatted** -- joined
@@ -206,7 +205,8 @@ def arguments(rows: Sequence[tuple], title: str = "Arguments") -> None:
     for label, value in rows:
         table.add_row(label, value)
 
-    console().print(Panel(table, title=title, title_align="left", expand=False))
+    console().print(Panel(table, title=title or i18n.t("panel.arguments"),
+                          title_align="left", expand=False))
 
 
 def section(title: str) -> None:
@@ -234,7 +234,7 @@ class _Bar:
 
 
 @contextmanager
-def progress(total: int, description: str = "Parsing") -> Iterator[_Bar]:
+def progress(total: int, description: Optional[str] = None) -> Iterator[_Bar]:
     """A live progress bar over ``total`` files.
 
     Disabled when quiet, when stderr is not a terminal, or for a single file
@@ -261,7 +261,7 @@ def progress(total: int, description: str = "Parsing") -> Iterator[_Bar]:
         redirect_stdout=False,
         redirect_stderr=False,
     )
-    task_id = bar.add_task(description, total=total)
+    task_id = bar.add_task(description or i18n.t("progress.parsing"), total=total)
     bar.start()
     try:
         # try/finally, always: a leaked Live makes the *next* run raise
@@ -304,8 +304,8 @@ def file_result(result) -> None:
 
     tail = Text()
     if counts is not None:
-        for value, unit in ((counts.hosts, "host"), (counts.ports, "port"),
-                            (counts.open_ports, "open")):
+        for value, unit in ((counts.hosts, "unit.host"), (counts.ports, "unit.port"),
+                            (counts.open_ports, "unit.open")):
             if tail:
                 tail.append("  ")
             tail.append_text(_quantity(value, unit))
@@ -333,11 +333,11 @@ def output_files(written) -> None:
         return
 
     if not _quiet:
-        section("Output files")
+        section(i18n.t("section.output"))
         table = Table(box=None, pad_edge=False, padding=(0, 1))
-        table.add_column("Format", style="xnp.label", no_wrap=True)
-        table.add_column("File", overflow="fold")
-        table.add_column("Size", justify="right", no_wrap=True)
+        table.add_column(i18n.t("table.format"), style="xnp.label", no_wrap=True)
+        table.add_column(i18n.t("table.file"), overflow="fold")
+        table.add_column(i18n.t("table.size"), justify="right", no_wrap=True)
         for item in written:
             table.add_row(item.fmt, Text(item.path, style="xnp.path"), decimal(item.size))
         console().print(table)
@@ -376,21 +376,21 @@ def summary(stats) -> None:
     def row(label: str, value: Text) -> None:
         table.add_row(label, value)
 
-    files = _quantity(stats.parsed, "parsed")
+    files = _quantity(stats.parsed, "unit.parsed")
     if stats.skipped:
         files.append("  ")
-        files.append_text(_quantity(stats.skipped, "skipped"))
-    row("Files", files)
+        files.append_text(_quantity(stats.skipped, "unit.skipped"))
+    row(i18n.t("summary.files"), files)
 
-    hosts = _quantity(len(stats.ips), "total")
+    hosts = _quantity(len(stats.ips), "unit.total")
     hosts.append("  ")
-    hosts.append_text(_quantity(stats.hosts_up, "up"))
-    row("Hosts", hosts)
+    hosts.append_text(_quantity(stats.hosts_up, "unit.up"))
+    row(i18n.t("summary.hosts"), hosts)
 
-    ports = _quantity(stats.ports, "total")
+    ports = _quantity(stats.ports, "unit.total")
     ports.append("  ")
-    ports.append_text(_quantity(stats.open_ports, "open"))
-    row("Ports", ports)
+    ports.append_text(_quantity(stats.open_ports, "unit.open"))
+    row(i18n.t("summary.ports"), ports)
 
     top = stats.top_services()
     if top:
@@ -400,22 +400,23 @@ def summary(stats) -> None:
                 services.append("  ")
             services.append(name, style="xnp.path")
             services.append(f" {count}", style="xnp.count")
-        row("Services", services)
+        row(i18n.t("summary.services"), services)
 
     if stats.rows_exported is not None:
-        merged = _quantity(stats.ports, "port")
+        merged = _quantity(stats.ports, "unit.port")
         merged.append(" → " if supports("→") else " -> ", style="xnp.unit")
-        merged.append_text(_quantity(stats.rows_exported, "row"))
-        row("Merged", merged)
+        merged.append_text(_quantity(stats.rows_exported, "unit.row"))
+        row(i18n.t("summary.merged"), merged)
 
     if stats.written:
-        files_written = _quantity(len(stats.written), "file")
+        files_written = _quantity(len(stats.written), "unit.file")
         files_written.append("  ")
         files_written.append(decimal(stats.bytes_written), style="xnp.count")
-        row("Written", files_written)
+        row(i18n.t("summary.written"), files_written)
 
-    row("Elapsed", Text(_elapsed(stats.elapsed), style="xnp.count"))
+    row(i18n.t("summary.elapsed"), Text(_elapsed(stats.elapsed), style="xnp.count"))
 
-    console().print(Panel(table, title="Summary", title_align="left", expand=False))
+    console().print(Panel(table, title=i18n.t("panel.summary"),
+                          title_align="left", expand=False))
     # The one closing gap, so the shell prompt is not glued to the panel.
     gap()

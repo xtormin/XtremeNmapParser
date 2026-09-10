@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="{{LANG}}" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,7 +22,7 @@
       <button id="tab-data" role="tab" aria-selected="false" type="button" data-i18n="tab.data"></button>
     </div>
     <div class="switches">
-      <select id="lang-select" aria-label="Idioma / Language">
+      <select id="lang-select" aria-label="Idioma / Language" data-i18n-aria="lang.select">
         <option value="es">ES</option>
         <option value="en">EN</option>
       </select>
@@ -39,7 +39,7 @@
       <label for="q" style="position:absolute;left:-9999px" data-i18n="q.placeholder"></label>
       <input id="q" type="text" spellcheck="false" autocomplete="off" data-i18n-ph="q.placeholder">
       <span class="count" id="count"></span>
-      <div id="suggest" hidden role="listbox" aria-label="Sugerencias"></div>
+      <div id="suggest" hidden role="listbox" data-i18n-aria="a11y.suggestions"></div>
     </div>
     <button id="reset" type="button" data-i18n="btn.clear"></button>
   </div>
@@ -101,7 +101,7 @@
 
 <div id="tip" class="tip" style="display:none"></div>
 
-<div id="filter-menu" hidden role="dialog" aria-label="Filtro de columna">
+<div id="filter-menu" hidden role="dialog" data-i18n-aria="a11y.filter_menu">
   <div class="fm-head">
     <span id="fm-title"></span>
     <span id="fm-count"></span>
@@ -115,7 +115,7 @@
 </div>
 
 <div id="drawer-scrim"></div>
-<aside id="drawer" aria-hidden="true" aria-label="Detalle de la fila seleccionada">
+<aside id="drawer" aria-hidden="true" data-i18n-aria="a11y.drawer">
   <header>
     <div class="titles">
       <h2 id="drawer-title"></h2>

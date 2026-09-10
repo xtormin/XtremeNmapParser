@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 
-from xnp import __version__
+from xnp import __version__, i18n
 from xnp.logs import get_logger
 
 logger = get_logger(__name__)
@@ -43,9 +43,8 @@ def check_for_updates() -> Optional[str]:
 
     latest_version = get_latest_version()
     if latest_version and latest_version != __version__:
-        logger.warning(
-            f"XNP {latest_version} is available (you have {__version__}) "
-            f"- update with: xnp --update")
+        logger.warning(i18n.t("update.available", latest=latest_version,
+                              current=__version__))
     return latest_version
 
 
@@ -53,13 +52,13 @@ def update_program() -> bool:
     """Update the checkout with ``git pull``. Only called for ``--update``."""
     latest_version = get_latest_version()
     if latest_version and latest_version == __version__:
-        logger.info(f"XNP {__version__} is already the latest version.")
+        logger.info(i18n.t("update.current", version=__version__))
         return False
 
     if latest_version:
-        logger.info(f"Updating to {latest_version}...")
+        logger.info(i18n.t("update.updating", version=latest_version))
     else:
-        logger.warning("Could not check the latest version; pulling anyway.")
+        logger.warning(i18n.t("update.unknown"))
 
     # This assumes that the program was installed using git.
     result = subprocess.run(["git", "pull"], cwd=os.path.dirname(os.path.dirname(

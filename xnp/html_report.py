@@ -20,7 +20,19 @@ import pandas as pd
 from xnp import __version__
 from xnp.config import XnpConfig, load_config
 from xnp.errors import XnpError
+from xnp.i18n import DEFAULT as DEFAULT_LANG
+from xnp.i18n import MESSAGES as LANGUAGES
 from xnp.report_model import build_hosts, classify_port, scan_to_dict
+
+
+def valid_lang(lang: Optional[str]) -> str:
+    """``lang`` if the report has a table for it, else the default.
+
+    The CLI already restricts ``--lang`` to what exists, but this is a public
+    entry point: a payload must never claim a language the report cannot show.
+    """
+    return lang if lang in LANGUAGES else DEFAULT_LANG
+
 
 ASSETS = Path(__file__).resolve().parent / "data" / "report"
 TEMPLATE = ASSETS / "report.html"
@@ -85,13 +97,17 @@ def _json_for_script(payload: dict) -> str:
 def build_payload(reports: Optional[list] = None, sources: Optional[list] = None,
                   merge: bool = False, only_open: bool = False,
                   title: Optional[str] = None, basename: Optional[str] = None,
-                  title_en: Optional[str] = None) -> dict:
+                  title_en: Optional[str] = None, lang: Optional[str] = None) -> dict:
     """Assemble the JSON payload embedded in the report."""
     reports = reports or []
     sources = sources or [None] * len(reports)
     return {
         "title": title or "Informe de superficie de red",
         "title_en": title_en or title or "Network exposure report",
+        # The language the report *opens* in when the reader has not picked one
+        # in its own selector.  Both languages still ship; this only sets the
+        # starting point.
+        "lang": valid_lang(lang),
         "basename": basename or "xnp-report",
         "generated_at": datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"),
         "xnp_version": __version__,
@@ -103,7 +119,8 @@ def build_payload(reports: Optional[list] = None, sources: Optional[list] = None
 
 def payload_from_dataframe(df: pd.DataFrame, title: Optional[str] = None,
                            basename: Optional[str] = None,
-                           title_en: Optional[str] = None) -> dict:
+                           title_en: Optional[str] = None,
+                           lang: Optional[str] = None) -> dict:
     """Build a reduced payload when only the flat DataFrame is available.
 
     The writer contract is ``writer(df, filename)``, so ``df_to_html`` has to
@@ -161,6 +178,10 @@ def payload_from_dataframe(df: pd.DataFrame, title: Optional[str] = None,
     return {
         "title": title or "Informe de superficie de red",
         "title_en": title_en or title or "Network exposure report",
+        # The language the report *opens* in when the reader has not picked one
+        # in its own selector.  Both languages still ship; this only sets the
+        # starting point.
+        "lang": valid_lang(lang),
         "basename": basename or "xnp-report",
         "generated_at": datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"),
         "xnp_version": __version__,
@@ -183,6 +204,10 @@ def render(payload: dict, config: Optional[XnpConfig] = None) -> str:
     values = {
         "TITLE": html.escape(payload.get("title") or config.html_title),
         "TITLE_EN": html.escape(payload.get("title_en") or payload.get("title") or ""),
+        # The document's own lang attribute.  The script resets it to whatever
+        # the reader ends up on, but this is what a screen reader -- or anyone
+        # with scripting off -- gets first.
+        "LANG": html.escape(valid_lang(payload.get("lang"))),
         "VERSION": html.escape(__version__),
         "GENERATED": html.escape(payload.get("generated_at", "")),
         "FONTS": _font_faces(),

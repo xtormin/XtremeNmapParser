@@ -24,20 +24,20 @@ reverse DNS, MAC vendors, traceroute and uptime.
 The HTML report, on the host with the most detail in it:
 
 ```bash
-xnp -f examples/single-host-deep.xml -oF html && open examples/single-host-deep.html
+xnp -f examples/single-host-deep.xml -oF html --show
 ```
 
 Two subnets merged into one report, which is where the `Origen` column and the
 deduplication show up:
 
 ```bash
-xnp -d examples/corporate-lan/ -M -oF html -oN /tmp/lan && open /tmp/lan.html
+xnp -d examples/corporate-lan/ -oF html -oN /tmp/lan --show
 ```
 
 Everything at once, recursively:
 
 ```bash
-xnp -d examples/ -M -R -oF html -oN /tmp/all && open /tmp/all.html
+xnp -d examples/ -oF html -oN /tmp/all --show
 ```
 
 That one warns that `other-scanners/masscan.xml` was skipped and carries on with

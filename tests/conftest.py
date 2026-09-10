@@ -24,19 +24,27 @@ def xml(fixtures_dir):
 def isolated_environment(monkeypatch):
     """Keep every test away from the network, a stale config cache and ANSI.
 
-    The colour and width settings matter because assertions on rendered output
-    would otherwise depend on the developer's own shell.
+    The colour, width and locale settings matter because assertions on rendered
+    output would otherwise depend on the developer's own shell.
     """
     from xnp import config as config_module
+    from xnp import i18n
 
     monkeypatch.setenv("XNP_NO_UPDATE_CHECK", "1")
     monkeypatch.delenv("XNP_CONFIG", raising=False)
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.delenv("FORCE_COLOR", raising=False)
     monkeypatch.setenv("COLUMNS", "120")
+    # Pin the language: without this, the assertions on message text would
+    # pass or fail depending on the developer's own locale.
+    monkeypatch.setenv("LC_ALL", "C")
+    monkeypatch.delenv("LC_MESSAGES", raising=False)
+    monkeypatch.delenv("LANG", raising=False)
+    i18n.setup()
     config_module.reset_config()
     yield
     config_module.reset_config()
+    i18n.setup()
 
 
 @pytest.fixture

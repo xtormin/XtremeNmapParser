@@ -7,7 +7,7 @@ from typing import Optional
 import pandas as pd
 from lxml import etree
 
-from xnp import stats
+from xnp import i18n, stats
 from xnp.errors import InvalidNmapReport, XnpError, short_reason
 from xnp.logs import get_logger
 from xnp.models import ScanData, empty_dataframe, to_dataframe
@@ -136,7 +136,9 @@ class NmapParser:
         try:
             df = parser.parse_file()
         except XnpError as exc:
-            logger.warning(f"Skipping {xml_file}: {short_reason(exc, xml_file)}")
+            # The reason comes from the exception, so it stays in English.
+            logger.warning(i18n.t("warn.skipping", path=xml_file,
+                                  reason=short_reason(exc, xml_file)))
             return None, stats.FileResult.failed(xml_file, exc), parser
         return df, stats.FileResult.parsed(xml_file, parser.report), parser
 

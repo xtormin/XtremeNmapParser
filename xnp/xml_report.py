@@ -293,8 +293,9 @@ class NmapXMLReport:
         3. the document is validated against the bundled ``nmap.dtd``.
 
         Set ``validate=False`` to skip only the third layer, which is what
-        nmap-compatible output from other scanners (masscan, naabu) needs: the
-        DTD pins ``scanner="nmap"`` and enumerates a closed list of scan types.
+        nmap-compatible output from another scanner needs -- ``masscan -oX``
+        being the one that turns up in practice: the DTD pins
+        ``scanner="nmap"`` and enumerates a closed list of scan types.
 
         Raises:
             NotAnNmapReport: the root element is not ``nmaprun``.

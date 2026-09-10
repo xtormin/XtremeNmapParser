@@ -1,6 +1,8 @@
 """Output filtering and the CSV / XLSX / JSON / HTML writers."""
 
 import json
+import os
+from datetime import datetime
 
 import pandas as pd
 import pytest
@@ -14,6 +16,7 @@ from xnp.output import (
     df_to_json,
     df_to_xlsx,
     get_output_name,
+    merged_output_name,
     write_dataframe,
 )
 from xnp.parser import NmapParser
@@ -95,6 +98,33 @@ def test_merged_output_honours_an_explicit_name():
 
 def test_single_file_output_is_derived_from_the_xml_name():
     assert get_output_name("nmap/scan.xml", None, None) == "nmap/scan"
+
+
+# --- The merged default name ------------------------------------------------
+
+WHEN = datetime(2026, 9, 10, 13, 45, 0)
+
+
+def test_the_merged_name_is_the_folder_plus_a_timestamp_inside_the_folder():
+    assert merged_output_name(os.path.join("scans", "internal"), WHEN) == os.path.join(
+        "scans", "internal", "internal_20260910-134500")
+
+
+def test_a_trailing_separator_does_not_cost_the_folder_its_name():
+    """``-d nmap/`` is the nmap folder, not an empty name."""
+    assert merged_output_name("nmap" + os.sep, WHEN) == os.path.join(
+        "nmap" + os.sep, "nmap_20260910-134500")
+
+
+def test_a_relative_folder_is_named_after_what_it_resolves_to(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert os.path.basename(merged_output_name(".", WHEN)) == (
+        f"{tmp_path.name}_20260910-134500")
+
+
+def test_two_runs_a_second_apart_do_not_overwrite_each_other():
+    later = WHEN.replace(second=1)
+    assert merged_output_name("nmap", WHEN) != merged_output_name("nmap", later)
 
 
 # --- Writers ----------------------------------------------------------------

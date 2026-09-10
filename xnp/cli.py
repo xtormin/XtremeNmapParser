@@ -4,10 +4,12 @@ import argparse
 import os
 import sys
 import time
+import webbrowser
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Optional
 
-from xnp import __version__, banner, ui, update
+from xnp import __version__, banner, i18n, ui, update
 from xnp import files as func
 from xnp import output as out
 from xnp.config import load_config
@@ -17,6 +19,10 @@ from xnp.parser import NmapParser
 from xnp.stats import FileResult, RunStats
 
 logger = get_logger(__name__)
+
+# A --no-merger run can write one report per XML: opening thirty browser tabs
+# helps nobody, so past this many we open the first few and say so.
+MAX_SHOWN = 5
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,18 +52,31 @@ def build_parser() -> argparse.ArgumentParser:
                         help='Output file name.',
                         nargs='?',
                         type=str)
+    # Both default to on: merging a directory recursively is what a directory
+    # run is almost always for, so the flags exist to switch it off, and -M/-R
+    # keep working for anyone whose scripts still pass them.
     parser.add_argument('-M', '--merger',
-                        help='Merge XML files from directory',
-                        action="store_true")
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Merge every XML file in the directory into one report. '
+                             'On by default; --no-merger writes one report per file')
     parser.add_argument('-R', '--recursive',
-                        help='Parse XML files from a directory recursively',
-                        action="store_true")
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Descend into subdirectories. On by default; '
+                             '--no-recursive stays at the top level')
     parser.add_argument('-C', '--columns',
                         type=str,
                         choices=['default', 'all'],
                         help='Columns for the output dataframe')
     parser.add_argument('--open',
                         help='Export only the ports with "open" value in "State Port"',
+                        action="store_true")
+    # Not --open: that one is about which ports get exported, and one flag
+    # cannot mean both.
+    parser.add_argument('--show',
+                        help='Open the generated HTML report in the browser '
+                             'when the run finishes',
                         action="store_true")
     parser.add_argument('--include-hostless',
                         dest='include_hostless',
@@ -67,7 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
                         dest='validate',
                         action="store_false",
                         help='Skip DTD validation. Needed for nmap-compatible output from '
-                             'other scanners (masscan, naabu)')
+                             'other scanners, such as masscan -oX')
     # Contradictory on purpose: asking for both is a mistake worth reporting
     # rather than silently resolving in favour of one.
     verbosity = parser.add_mutually_exclusive_group()
@@ -81,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
                         dest='no_color',
                         action="store_true",
                         help='Disable colour (the NO_COLOR env var works too)')
+    parser.add_argument('--lang',
+                        choices=list(i18n.LANGUAGES),
+                        help='Language for the terminal messages, and the default '
+                             'the HTML report opens in. Defaults to the environment '
+                             '(LC_ALL / LC_MESSAGES / LANG)')
     parser.add_argument('--update',
                         action="store_true",
                         help='Update XNP to the latest release and exit')
@@ -104,9 +128,17 @@ def validate_args(parser, args):
     if args.directory and not os.path.isdir(args.directory):
         parser.error(f"not a directory: {args.directory}")
 
-    for flag, name in ((args.merger, "-M/--merger"), (args.recursive, "-R/--recursive")):
-        if flag and not args.directory:
+    # Only the negations are worth rejecting: -M/-R now say what already
+    # happens, but --no-merger with -f is asking for something that has no
+    # meaning at all.
+    for flag, name in ((args.merger, "--no-merger"), (args.recursive, "--no-recursive")):
+        if not flag and not args.directory:
             parser.error(f"{name} only makes sense together with -d/--directory")
+
+    # html is in the default -oF set, so this only fires when it was explicitly
+    # left out -- an ask with nothing to open.
+    if args.show and "html" not in args.outputformat:
+        parser.error("--show needs the html format: drop -oF, or add html to it")
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -127,19 +159,30 @@ def argument_rows(args, df_columns) -> list:
     are dropped, so a directory run does not print "File (-f)  None" -- and no
     row is ever a Python list repr.
     """
+    yes = i18n.t("value.yes")
+
+    def on_off(value):
+        """Both are on by default, so "no" is the answer worth printing."""
+        return yes if value else i18n.t("value.no")
+
     rows = [
-        ("File (-f)", args.file),
-        ("Folder (-d)", args.directory),
-        ("Merge files (-M)", "yes" if args.merger else ""),
-        ("Recursive (-R)", "yes" if args.recursive else ""),
-        ("Output format (-oF)", ", ".join(args.outputformat)),
-        ("Output name (-oN)", args.outputname),
-        ("Columns (-C)", ", ".join(df_columns)),
-        ("Open ports (--open)", "yes" if args.open else ""),
-        ("Include hostless", "yes" if args.include_hostless else ""),
-        ("DTD validation", "" if args.validate else "off (--no-validate)"),
+        ("arg.file", args.file),
+        ("arg.folder", args.directory),
+        # Only for a directory run: with -f neither setting means anything.
+        ("arg.merge", on_off(args.merger) if args.directory else ""),
+        ("arg.recursive", on_off(args.recursive) if args.directory else ""),
+        ("arg.format", ", ".join(args.outputformat)),
+        ("arg.name", args.outputname),
+        ("arg.columns", ", ".join(df_columns)),
+        ("arg.open", yes if args.open else ""),
+        ("arg.show", yes if args.show else ""),
+        ("arg.hostless", yes if args.include_hostless else ""),
+        ("arg.validation", "" if args.validate else i18n.t("value.no_validate")),
+        # Only worth a row when it was asked for: otherwise it is just the
+        # environment's own language being reported back at you.
+        ("arg.language", args.lang or ""),
     ]
-    return [(label, value) for label, value in rows if value]
+    return [(i18n.t(key), value) for key, value in rows if value]
 
 
 def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_output_name,
@@ -164,7 +207,7 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
     def html_context(reports, sources, merge=False):
         """Everything the HTML report needs that the DataFrame cannot carry."""
         return {"reports": reports, "sources": sources, "merge": merge,
-                "only_open": only_open_ports}
+                "only_open": only_open_ports, "lang": i18n.current()}
 
     # Single nmap XML file
     if single_xml:
@@ -174,7 +217,7 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
         run.add(result)
         ui.file_result(result)
         if df is None:
-            logger.warning("The file has no scan data, omitting export")
+            logger.warning(i18n.t("warn.no_data"))
         else:
             export(df, single_xml, html_context([parser.report], [single_xml]))
 
@@ -208,6 +251,10 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
                 ui.file_result(result)
 
             if merger:
+                # Named and placed here, once, so every requested format shares
+                # a single timestamp instead of straddling a second boundary.
+                merged_name = file_output_name or out.merged_output_name(
+                    folder_multiple_xml)
                 df, reports, skipped = NmapParser.merge_all(
                     xml_files, validate, include_hostless, skip_invalid=True,
                     on_file=on_file)
@@ -215,7 +262,7 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
                 run.rows_exported = 0 if df is None else len(df)
                 run.written.extend(
                     out.export_multiple_xml(
-                        df, list_output_format, file_output_name, merger, config,
+                        df, list_output_format, merged_name, merger, config,
                         context=html_context(reports, xml_files, merge=True)))
             else:
                 skipped = []
@@ -227,7 +274,7 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
                         skipped.append((xml_file, result.error))
                         continue
                     if df is None:
-                        logger.warning("The file has no scan data, omitting export")
+                        logger.warning(i18n.t("warn.no_data"))
                     else:
                         export(df, xml_file, html_context([parser.report], [xml_file]))
 
@@ -239,22 +286,54 @@ def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_ou
     return run
 
 
+def show_reports(written, limit: int = MAX_SHOWN) -> list:
+    """Open the HTML reports the run produced, and return what was opened.
+
+    A file:// URI rather than a bare path: a path with a space or a ``#`` in it
+    is not a URL, and every browser reads the URI the same way.
+    """
+    reports = [item.path for item in written if item.fmt == "html"]
+    if not reports:
+        # Reaching here means html was asked for and nothing came of it -- an
+        # empty scan, most likely.  Silence would read as a broken --show.
+        logger.warning(i18n.t("warn.nothing_to_show"))
+        return []
+
+    if len(reports) > limit:
+        logger.warning(i18n.t("warn.show_limited", shown=limit, total=len(reports)))
+        reports = reports[:limit]
+
+    opened = []
+    for path in reports:
+        try:
+            webbrowser.open(Path(path).resolve().as_uri())
+        except (webbrowser.Error, OSError) as exc:
+            # A headless box has no browser to hand this to.  The report is
+            # already written and its path already printed, so this is a
+            # warning, not the end of a run that did everything it was asked.
+            logger.warning(i18n.t("warn.show_failed", path=path, reason=exc))
+            continue
+        opened.append(path)
+    return opened
+
+
 def report_skipped(skipped, total):
     """Say plainly what was left out, so a partial run is never a silent one."""
     if not skipped:
         return
     # Its own block: this is the run's verdict, not another parsing line.
     ui.gap()
-    logger.warning(f"{len(skipped)} of {total} files were skipped:")
+    logger.warning(i18n.t("warn.skipped_count", count=len(skipped), total=total))
     for xml_file, _ in skipped:
         logger.warning(f"  {xml_file}")
-    logger.warning("Pass --no-validate if they come from another scanner")
+    logger.warning(i18n.t("warn.skipped_hint"))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Run XNP. Returns the process exit code."""
     args = parse_args(argv)
     # After parse_args, so argparse keeps reporting its own errors its own way.
+    i18n.setup(args.lang)
     ui.setup(quiet=args.quiet, no_color=args.no_color)
     # The log handler writes to ui's console, so ui must exist first.
     setup_logging(args.verbose, args.quiet)
@@ -274,7 +353,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         df_columns = config.columns_for(args.columns)
         ui.arguments(argument_rows(args, df_columns))
 
-        ui.section("Parsing files")
+        ui.section(i18n.t("section.parsing"))
         run = parse_xml_files(single_xml=args.file,
                               folder_multiple_xml=args.directory,
                               list_output_format=args.outputformat,
@@ -290,6 +369,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # Announced here, once, for all three branches -- which is also why a
         # non-merged directory run finally lists what it wrote.
         ui.output_files(run.written)
+        # After the paths are out: --show must not cost you the deliverable
+        # list if there is no browser to hand it to.
+        if args.show:
+            show_reports(run.written)
         run.elapsed = time.monotonic() - started
         ui.summary(run)
         return 0

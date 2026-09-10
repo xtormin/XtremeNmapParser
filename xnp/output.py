@@ -1,11 +1,12 @@
 """Filtering and export of the parsed DataFrame (CSV / XLSX / JSON / HTML)."""
 
 import os
+from datetime import datetime
 from typing import Optional
 
 import pandas as pd
 
-from xnp import html_report, stats
+from xnp import html_report, i18n, stats
 from xnp.config import XnpConfig, load_config
 from xnp.errors import XnpError
 from xnp.logs import get_logger
@@ -13,6 +14,27 @@ from xnp.logs import get_logger
 logger = get_logger(__name__)
 
 DEFAULT_MERGED_NAME = "merged_nmap_scan_data"
+# Sortable, and free of the characters a shell or Windows would object to.
+TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
+
+
+def merged_output_name(directory: str, when: Optional[datetime] = None) -> str:
+    """Base name (no extension) for a merged directory run.
+
+    The report is named after the folder it came from and stamped with the
+    time, and it lands *inside* that folder -- next to the scans it was built
+    from, like the per-file outputs already do, rather than in whatever
+    directory the command happened to be run from.  The stamp means a second
+    run adds a report instead of quietly overwriting yesterday's deliverable.
+
+    ``-oN`` still overrides all of this, and is taken exactly as given.
+    """
+    # normpath first, so "nmap/" is the "nmap" folder and not an empty name;
+    # abspath so that "." and ".." are named after the folder they resolve to.
+    folder = os.path.basename(os.path.normpath(os.path.abspath(directory)))
+    stamp = (when or datetime.now()).strftime(TIMESTAMP_FORMAT)
+    # At the filesystem root there is no folder name to borrow.
+    return os.path.join(directory, f"{folder or DEFAULT_MERGED_NAME}_{stamp}")
 
 
 def adjust_columns(worksheet, df):
@@ -96,6 +118,9 @@ def df_to_html(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = No
     context = context or {}
     _ensure_parent_dir(filename)
     basename = html_report.basename_for(filename)
+    # The language the run was asked for becomes the report's default; a reader
+    # who has already picked one in the report keeps theirs.
+    lang = context.get("lang") or i18n.current()
 
     try:
         reports = context.get("reports")
@@ -107,11 +132,12 @@ def df_to_html(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = No
                 only_open=bool(context.get("only_open")),
                 title=config.html_title,
                 title_en=config.html_title_en,
-                basename=basename)
+                basename=basename,
+                lang=lang)
         else:
             payload = html_report.payload_from_dataframe(
                 df, title=config.html_title, title_en=config.html_title_en,
-                basename=basename)
+                basename=basename, lang=lang)
 
         html_report.write(payload, filename, config)
     except (OSError, ValueError, TypeError) as exc:
@@ -153,7 +179,7 @@ def write_dataframe(df, list_output_format, file_output_name=None, merger=None, 
     caller announces them; the writers no longer log a line each.
     """
     if df is None or df.empty:
-        logger.warning("The file has no scan data, omitting export")
+        logger.warning(i18n.t("warn.no_data"))
         return []
 
     output_name = get_output_name(file_xml, file_output_name, merger, config)

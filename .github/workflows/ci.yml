@@ -33,6 +33,7 @@ jobs:
         env:
           XNP_NO_UPDATE_CHECK: "1"
           NO_COLOR: "1"
+          LC_ALL: "C"
         run: pytest --cov=xnp --cov-report=term-missing --cov-fail-under=90
 
       - name: Smoke test the installed entry point
