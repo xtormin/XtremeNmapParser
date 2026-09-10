@@ -5,7 +5,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xtormin/XtremeNmapParser/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xtormin/XtremeNmapParser/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Python" src="https://img.shields.io/badge/python-3.9%20%E2%80%93%203.13-blue">
   <img alt="Licencia" src="https://img.shields.io/badge/licencia-MIT-green">
   <img alt="Versión" src="https://img.shields.io/badge/versi%C3%B3n-1.2.0-orange">
@@ -18,6 +17,7 @@
 <p align="center">
   <a href="#instalación">Instalación</a> ·
   <a href="#comandos-habituales">Comandos</a> ·
+  <a href="#otros-ejemplos-de-comandos">Otros ejemplos</a> ·
   <a href="#flags">Flags</a> ·
   <a href="#reescaneo-dirigido">Reescaneo</a> ·
   <a href="#el-informe-html">Informe HTML</a> ·
@@ -40,13 +40,20 @@ pip install .
 
 Eso te deja un comando `xnp` que funciona desde cualquier directorio.
 
+## Comandos habituales
+
+* **Un fichero:**
+
+
 ```bash
 xnp -f examples/single-host-deep.xml
 xnp -f examples/single-host-deep.xml --show
 ```
 
-Escribe `scan.csv`, `scan.xlsx`, `scan.json` y `scan.html` junto al fichero de
+Escribe `single-host-deep.csv`, `.xlsx`, `.json` y `.html` junto al fichero de
 entrada.
+
+* **Carpeta con múltiples ficheros:**
 
 Creación del informe con toda la información de una carpeta de forma recursiva:
 
@@ -54,7 +61,7 @@ Creación del informe con toda la información de una carpeta de forma recursiva
 xnp -d examples --show
 ```
 
-Lo mismo, pero con idioma en español:
+Lo mismo, pero con idioma en español (es) o inglés (en):
 
 ```bash
 xnp -d examples --show --lang es
@@ -62,7 +69,7 @@ xnp -d examples --show --lang es
 
 ---
 
-## Comandos habituales
+## Otros ejemplos de comandos
 
 | Quiero… | Comando |
 | --- | --- |
@@ -128,7 +135,7 @@ máquina sin navegador recibe un aviso, no un run fallido.
 ## Reescaneo dirigido
 
 ```bash
-xnp -d nmap/ --rescan
+xnp -d examples/ --rescan
 ```
 
 Un escaneo terminado ya sabe qué hosts están vivos y qué puertos tienen
@@ -153,11 +160,11 @@ esté por defecto. `--rescan-args` sustituye los argumentos por completo — ojo
 `=`, o argparse lee el guion inicial como un flag:
 
 ```bash
-xnp -d nmap/ --rescan vuln
+xnp -d examples/ --rescan vuln
 ```
 
 ```bash
-xnp -d nmap/ --rescan-args="-sV --script vuln -Pn"
+xnp -d examples/ --rescan-args="-sV --script vuln -Pn"
 ```
 
 La lista de puertos, los tipos de escaneo y `-6` se deciden por grupo, así que
@@ -178,7 +185,7 @@ stderr, así que stdout sigue siendo la lista limpia de rutas generadas.
 ## El informe HTML
 
 ```bash
-xnp -f scan.xml -oF html --show
+xnp -f examples/single-host-deep.xml -oF html --show
 ```
 
 Un solo fichero y ni una petición de red: hoja de estilos, script, tipografías,
@@ -268,10 +275,12 @@ CI ejecuta la suite en Python 3.9 – 3.13.
 
 ---
 
-## Licencia y enlaces
+## Licencia
 
 MIT — ver [LICENSE](LICENSE). Historial de versiones en
 [CHANGELOG.es.md](CHANGELOG.es.md).
+
+## Redes sociales
 
 [xtormin.com](https://xtormin.com) ·
 [LinkedIn](https://www.linkedin.com/in/xtormin/) ·

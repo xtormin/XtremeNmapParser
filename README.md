@@ -5,7 +5,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xtormin/XtremeNmapParser/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xtormin/XtremeNmapParser/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Python" src="https://img.shields.io/badge/python-3.9%20%E2%80%93%203.13-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Version" src="https://img.shields.io/badge/version-1.2.0-orange">
@@ -18,6 +17,7 @@
 <p align="center">
   <a href="#install">Install</a> ·
   <a href="#common-commands">Commands</a> ·
+  <a href="#other-command-examples">More examples</a> ·
   <a href="#flags">Flags</a> ·
   <a href="#targeted-rescan">Rescan</a> ·
   <a href="#the-html-report">HTML report</a> ·
@@ -40,23 +40,35 @@ pip install .
 
 That gives you an `xnp` command that works from any directory.
 
+## Common commands
+
+* **One file:**
+
 ```bash
-xnp -f scan.xml
+xnp -f examples/single-host-deep.xml
+xnp -f examples/single-host-deep.xml --show
 ```
 
-Writes `scan.csv`, `scan.xlsx`, `scan.json` and `scan.html` next to the input.
-Open the HTML one — that is where the tool earns its keep.
+Writes `single-host-deep.csv`, `.xlsx`, `.json` and `.html` next to the input
+file.
 
-No scan at hand? The repo ships with example scans — `--show` opens the report
-when the run finishes:
+* **A folder with several files:**
+
+Build one report out of a whole folder, recursively:
 
 ```bash
-xnp -f examples/single-host-deep.xml -oF html --show
+xnp -d examples --show
+```
+
+The same, with the terminal and the report in Spanish (es) or English (en):
+
+```bash
+xnp -d examples --show --lang es
 ```
 
 ---
 
-## Common commands
+## Other command examples
 
 | I want to… | Command |
 | --- | --- |
@@ -120,7 +132,7 @@ and a machine with no browser gets a warning, not a failed run.
 ## Targeted rescan
 
 ```bash
-xnp -d nmap/ --rescan
+xnp -d examples/ --rescan
 ```
 
 A finished scan already knows which hosts are up and which ports they have
@@ -143,11 +155,11 @@ configured default. `--rescan-args` replaces the arguments outright — note the
 `=`, or argparse reads the leading dash as a flag:
 
 ```bash
-xnp -d nmap/ --rescan vuln
+xnp -d examples/ --rescan vuln
 ```
 
 ```bash
-xnp -d nmap/ --rescan-args="-sV --script vuln -Pn"
+xnp -d examples/ --rescan-args="-sV --script vuln -Pn"
 ```
 
 The port list, the scan types and `-6` are decided per group, so `-p`/`-F`/
@@ -167,7 +179,7 @@ clean list of generated paths.
 ## The HTML report
 
 ```bash
-xnp -f scan.xml -oF html --show
+xnp -f examples/single-host-deep.xml -oF html --show
 ```
 
 One file, no network requests: stylesheet, script, fonts, charts and scan data
@@ -253,9 +265,11 @@ CI runs the suite on Python 3.9 – 3.13.
 
 ---
 
-## License & links
+## License
 
 MIT — see [LICENSE](LICENSE). Version history in [CHANGELOG.md](CHANGELOG.md).
+
+## Social links
 
 [xtormin.com](https://xtormin.com) ·
 [LinkedIn](https://www.linkedin.com/in/xtormin/) ·
