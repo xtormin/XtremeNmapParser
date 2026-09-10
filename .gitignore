@@ -142,3 +142,6 @@ examples/**/*.html
 examples/**/*.csv
 examples/**/*.xlsx
 examples/**/*.json
+
+# AI
+CLAUDE.md
