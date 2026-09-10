@@ -5,7 +5,7 @@ from typing import Optional
 
 import pandas as pd
 
-from xnp import html_report
+from xnp import html_report, stats
 from xnp.config import XnpConfig, load_config
 from xnp.errors import XnpError
 from xnp.logs import get_logger
@@ -61,7 +61,6 @@ def df_to_xlsx(df: pd.DataFrame, filename: str,
                                                          'style': config.table_style,
                                                          'columns': table_headers})
         writer.close()
-        logger.info(f" |+| Output | xlsx | {filename}")
     except (OSError, ValueError) as exc:
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
@@ -71,7 +70,6 @@ def df_to_csv(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = Non
     _ensure_parent_dir(filename)
     try:
         df.to_csv(filename, sep=';', encoding='utf-8', index=False)
-        logger.info(f" |+| Output | csv | {filename}")
     except (OSError, ValueError) as exc:
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
@@ -81,7 +79,6 @@ def df_to_json(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = No
     _ensure_parent_dir(filename)
     try:
         df.to_json(filename, orient='records', lines=True)
-        logger.info(f" |+| Output | json | {filename}")
     except (OSError, ValueError) as exc:
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
@@ -117,7 +114,6 @@ def df_to_html(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = No
                 basename=basename)
 
         html_report.write(payload, filename, config)
-        logger.info(f" |+| Output | html | {filename}")
     except (OSError, ValueError, TypeError) as exc:
         raise XnpError(f" |x| Error | {filename} file not created: {exc}") from exc
 
@@ -149,31 +145,41 @@ def get_output_name(file_xml: Optional[str], output_name: Optional[str],
 
 
 def write_dataframe(df, list_output_format, file_output_name=None, merger=None, file_xml=None,
-                    config=None, context=None):
+                    config=None, context=None) -> list:
+    """Write every requested format, returning what was produced.
+
+    The return value is a list of :class:`~xnp.stats.WrittenFile`, sized on
+    disk here because this is the one place all four formats pass through.  The
+    caller announces them; the writers no longer log a line each.
+    """
     if df is None or df.empty:
-        logger.warning(" |?| Warning | The file has no scan data, omitting export")
-        return
+        logger.warning("The file has no scan data, omitting export")
+        return []
 
     output_name = get_output_name(file_xml, file_output_name, merger, config)
 
+    written = []
     for output_format_type in list_output_format:
         writer = WRITERS.get(output_format_type)
         if writer is None:
             continue
-        writer(df, f"{output_name}.{output_format_type}", config=config, context=context)
+        path = f"{output_name}.{output_format_type}"
+        writer(df, path, config=config, context=context)
+        written.append(stats.written_file(output_format_type, path))
+    return written
 
 
 def export_single_xml(df, xml_file, list_output_format, file_output_name=None, config=None,
-                      context=None):
-    write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format,
-                    file_output_name=file_output_name, config=config, context=context)
+                      context=None) -> list:
+    return write_dataframe(df=df, file_xml=xml_file, list_output_format=list_output_format,
+                           file_output_name=file_output_name, config=config, context=context)
 
 
 def export_multiple_xml(df, list_output_format, file_output_name, merger, config=None,
-                        context=None):
-    write_dataframe(df=df, list_output_format=list_output_format,
-                    file_output_name=file_output_name, merger=merger, config=config,
-                    context=context)
+                        context=None) -> list:
+    return write_dataframe(df=df, list_output_format=list_output_format,
+                           file_output_name=file_output_name, merger=merger, config=config,
+                           context=context)
 
 
 def df_output_filters(df: Optional[pd.DataFrame], df_columns: list,

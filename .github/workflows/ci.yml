@@ -32,6 +32,7 @@ jobs:
         # No test may reach the network; the startup version check is disabled.
         env:
           XNP_NO_UPDATE_CHECK: "1"
+          NO_COLOR: "1"
         run: pytest --cov=xnp --cov-report=term-missing --cov-fail-under=90
 
       - name: Smoke test the installed entry point
@@ -42,3 +43,6 @@ jobs:
           xnp --version
           xnp -f "$GITHUB_WORKSPACE/tests/fixtures/single_host.xml" -oF csv
           test -f "$GITHUB_WORKSPACE/tests/fixtures/single_host.csv"
+          # stdout carries the generated paths and nothing else.
+          written=$(xnp -q -f "$GITHUB_WORKSPACE/tests/fixtures/single_host.xml" -oF csv)
+          test "$written" = "$GITHUB_WORKSPACE/tests/fixtures/single_host.csv"

@@ -270,3 +270,65 @@ def test_a_named_file_that_does_not_validate_still_fails(run_cli, tmp_path, fixt
     shutil.copy(fixtures_dir / "masscan.xml", tmp_path / "scan.xml")
     assert run_cli(["-f", str(tmp_path / "scan.xml"), "-oF", "csv"], cwd=tmp_path) == 2
     assert not (tmp_path / "scan.csv").exists()
+
+
+# --- What the terminal says -------------------------------------------------
+
+def test_stdout_carries_the_generated_paths_and_nothing_else(run_cli, tmp_path,
+                                                             fixtures_dir, capsys):
+    """``xnp -d nmap/ > written.txt`` should be a usable list of deliverables."""
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+
+    assert run_cli(["-f", str(scan), "-oF", "csv", "json"], cwd=tmp_path) == 0
+
+    out = capsys.readouterr().out.splitlines()
+    assert out == [str(tmp_path / "scan.csv"), str(tmp_path / "scan.json")]
+
+
+def test_quiet_leaves_only_the_generated_paths(run_cli, tmp_path, fixtures_dir, capsys):
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+
+    assert run_cli(["-q", "-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 0
+
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == [str(tmp_path / "scan.csv")]
+    assert captured.err == "", "no banner, no panels, no summary"
+
+
+def test_a_directory_run_lists_every_file_it_wrote(run_cli, tmp_path, fixtures_dir, capsys):
+    """Without -M this section was never shown at all: the header was missing."""
+    for name in ("dup_a", "dup_b"):
+        shutil.copy(fixtures_dir / f"{name}.xml", tmp_path / f"{name}.xml")
+
+    assert run_cli(["-q", "-d", str(tmp_path), "-oF", "csv"], cwd=tmp_path) == 0
+
+    assert sorted(capsys.readouterr().out.splitlines()) == sorted(
+        [str(tmp_path / "dup_a.csv"), str(tmp_path / "dup_b.csv")])
+
+
+def test_the_summary_reports_what_was_found(run_cli, tmp_path, fixtures_dir, capsys):
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 0
+
+    err = capsys.readouterr().err
+    assert "Summary" in err
+    assert "1 host" in err          # single_host.xml holds exactly one
+    assert "3 total" in err         # three ports, two of them open
+    assert "2 open" in err
+
+
+def test_the_arguments_panel_never_shows_a_python_list(run_cli, tmp_path,
+                                                       fixtures_dir, capsys):
+    """-oF csv html used to render as ['csv', 'html']."""
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+
+    assert run_cli(["-f", str(scan), "-oF", "csv", "json"], cwd=tmp_path) == 0
+
+    err = capsys.readouterr().err
+    assert "csv, json" in err
+    assert "['csv'" not in err

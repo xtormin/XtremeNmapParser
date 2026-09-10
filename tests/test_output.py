@@ -127,14 +127,21 @@ def test_xlsx_is_written_and_readable(df, tmp_path):
 
 
 def test_write_dataframe_emits_every_requested_format(df, tmp_path):
-    write_dataframe(df_output_filters(df, DEFAULT_COLUMNS, False),
-                    ["csv", "json", "xlsx"], file_xml=str(tmp_path / "scan.xml"))
+    written = write_dataframe(df_output_filters(df, DEFAULT_COLUMNS, False),
+                              ["csv", "json", "xlsx"], file_xml=str(tmp_path / "scan.xml"))
     for extension in ("csv", "json", "xlsx"):
         assert (tmp_path / f"scan.{extension}").is_file()
 
+    # The caller announces what was written, so it has to come back sized.
+    assert [item.fmt for item in written] == ["csv", "json", "xlsx"]
+    assert all(item.size > 0 for item in written)
+    assert [item.path for item in written] == [
+        str(tmp_path / f"scan.{extension}") for extension in ("csv", "json", "xlsx")]
+
 
 def test_write_dataframe_skips_an_empty_dataframe(tmp_path):
-    write_dataframe(pd.DataFrame(), ["csv"], file_xml=str(tmp_path / "scan.xml"))
+    assert write_dataframe(pd.DataFrame(), ["csv"],
+                           file_xml=str(tmp_path / "scan.xml")) == []
     assert not (tmp_path / "scan.csv").exists()
 
 
@@ -206,9 +213,10 @@ def test_an_unwritable_output_directory_raises(df, tmp_path, monkeypatch):
 def test_an_unknown_output_format_is_skipped(df, tmp_path):
     """Unknown formats are ignored rather than crashing the whole run."""
     filtered = df_output_filters(df, DEFAULT_COLUMNS, False)
-    write_dataframe(filtered, ["csv", "pdf"], file_xml=str(tmp_path / "scan.xml"))
+    written = write_dataframe(filtered, ["csv", "pdf"], file_xml=str(tmp_path / "scan.xml"))
     assert (tmp_path / "scan.csv").is_file()
     assert not (tmp_path / "scan.pdf").exists()
+    assert [item.fmt for item in written] == ["csv"]
 
 
 def test_write_dataframe_skips_none(tmp_path):

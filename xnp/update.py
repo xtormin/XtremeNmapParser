@@ -44,7 +44,7 @@ def check_for_updates() -> Optional[str]:
     latest_version = get_latest_version()
     if latest_version and latest_version != __version__:
         logger.warning(
-            f" |!| XNP {latest_version} is available (you have {__version__}) "
+            f"XNP {latest_version} is available (you have {__version__}) "
             f"- update with: xnp --update")
     return latest_version
 
@@ -53,13 +53,13 @@ def update_program() -> bool:
     """Update the checkout with ``git pull``. Only called for ``--update``."""
     latest_version = get_latest_version()
     if latest_version and latest_version == __version__:
-        logger.info(f" |+| XNP {__version__} is already the latest version.")
+        logger.info(f"XNP {__version__} is already the latest version.")
         return False
 
     if latest_version:
-        logger.info(f" |+| Updating to {latest_version}...")
+        logger.info(f"Updating to {latest_version}...")
     else:
-        logger.warning(" |?| Could not check the latest version; pulling anyway.")
+        logger.warning("Could not check the latest version; pulling anyway.")
 
     # This assumes that the program was installed using git.
     result = subprocess.run(["git", "pull"], cwd=os.path.dirname(os.path.dirname(

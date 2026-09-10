@@ -22,11 +22,18 @@ def xml(fixtures_dir):
 
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch):
-    """Keep every test away from the network and from a stale config cache."""
+    """Keep every test away from the network, a stale config cache and ANSI.
+
+    The colour and width settings matter because assertions on rendered output
+    would otherwise depend on the developer's own shell.
+    """
     from xnp import config as config_module
 
     monkeypatch.setenv("XNP_NO_UPDATE_CHECK", "1")
     monkeypatch.delenv("XNP_CONFIG", raising=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setenv("COLUMNS", "120")
     config_module.reset_config()
     yield
     config_module.reset_config()

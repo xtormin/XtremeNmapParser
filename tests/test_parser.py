@@ -208,3 +208,57 @@ def test_empty_dataframe_carries_the_columns():
     df = empty_dataframe()
     assert df.empty
     assert list(df.columns) == ALL_COLUMNS
+
+
+# --- Watching a directory run go by -----------------------------------------
+
+def test_parse_all_reports_each_file_as_it_finishes(xml):
+    """The hook the CLI drives its progress bar from."""
+    seen = []
+    NmapParser.parse_all([xml("single_host"), xml("multi_host")], on_file=seen.append)
+
+    assert [result.path for result in seen] == [xml("single_host"), xml("multi_host")]
+    assert all(result.ok for result in seen)
+    assert seen[0].counts.ports == 3
+    assert seen[0].ips == {"10.0.0.1"}
+
+
+def test_a_skipped_file_is_reported_too(xml):
+    """The bar must step for a file that failed, or it stalls on a bad input."""
+    seen = []
+    NmapParser.parse_all([xml("single_host"), xml("masscan")],
+                         skip_invalid=True, on_file=seen.append)
+
+    assert [result.ok for result in seen] == [True, False]
+    assert seen[1].path == xml("masscan")
+    assert seen[1].error is not None
+    assert seen[1].counts is None
+
+
+def test_merge_all_forwards_the_hook(xml):
+    seen = []
+    NmapParser.merge_all([xml("dup_a"), xml("dup_b")], on_file=seen.append)
+    assert len(seen) == 2
+
+
+def test_parse_one_returns_the_frame_the_result_and_the_parser(xml):
+    df, result, parser = NmapParser.parse_one(xml("single_host"))
+
+    assert len(df) == 3
+    assert result.ok and result.counts.hosts == 1
+    assert parser.report is not None
+
+
+def test_parse_one_turns_a_bad_file_into_a_result_instead_of_raising(xml):
+    df, result, _ = NmapParser.parse_one(xml("masscan"))
+
+    assert df is None
+    assert result.ok is False
+    assert isinstance(result.error, Exception)
+
+
+def test_the_counts_property_is_empty_before_parsing(xml):
+    parser = NmapParser(xml("single_host"))
+    assert parser.counts is None
+    parser.parse_file()
+    assert parser.counts.ports == 3

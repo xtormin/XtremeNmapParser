@@ -24,6 +24,8 @@ def test_defaults():
     assert args.recursive is False
     assert args.open is False
     assert args.verbose is False
+    assert args.quiet is False
+    assert args.no_color is False
 
 
 def test_short_and_long_flags_agree():
@@ -61,7 +63,8 @@ def test_help_mentions_every_flag(capsys):
         build_parser().parse_args(["--help"])
     out = capsys.readouterr().out
     for flag in ("--file", "--directory", "--outputformat", "--outputname",
-                 "--merger", "--recursive", "--columns", "--open"):
+                 "--merger", "--recursive", "--columns", "--open",
+                 "--quiet", "--no-color"):
         assert flag in out
 
 
@@ -115,6 +118,11 @@ def test_directory_only_flags_are_rejected_without_a_directory(capsys, flag):
     assert "only makes sense together with -d" in message
 
 
+def test_verbose_and_quiet_together_are_rejected(capsys):
+    """Two contradictory asks; saying so beats silently picking one."""
+    assert "not allowed with" in error_message(capsys, ["-f", __file__, "-v", "-q"])
+
+
 def test_a_valid_directory_is_accepted(tmp_path):
     assert parse_args(["-d", str(tmp_path), "-M", "-R"]).directory == str(tmp_path)
 
@@ -148,6 +156,16 @@ def test_without_verbose_logging_stays_at_info(run_cli, tmp_path, fixtures_dir):
     assert logging.getLogger("xnp").level == logging.INFO
 
 
+def test_quiet_lifts_the_log_level_to_errors_only(run_cli, tmp_path, fixtures_dir):
+    import logging
+    import shutil
+
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+    run_cli(["-f", str(scan), "-oF", "csv", "-q"], cwd=tmp_path)
+    assert logging.getLogger("xnp").level == logging.ERROR
+
+
 def test_update_flag_delegates_to_the_update_module(run_cli, tmp_path, monkeypatch):
     import xnp.update as update_module
 
@@ -172,3 +190,20 @@ def test_the_module_can_be_run_with_python_dash_m():
                             capture_output=True, text=True)
     assert result.returncode == 0
     assert __version__ in result.stdout
+
+
+def test_ctrl_c_exits_cleanly_instead_of_dumping_a_traceback(run_cli, tmp_path,
+                                                             fixtures_dir, monkeypatch):
+    """Interrupting a run with a live display up should not spew a traceback."""
+    import shutil
+
+    import xnp.cli as cli_module
+
+    scan = tmp_path / "scan.xml"
+    shutil.copy(fixtures_dir / "single_host.xml", scan)
+
+    def interrupted(*_args, **_kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli_module, "parse_xml_files", interrupted)
+    assert run_cli(["-f", str(scan), "-oF", "csv"], cwd=tmp_path) == 130

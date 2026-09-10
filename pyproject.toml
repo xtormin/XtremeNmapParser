@@ -23,8 +23,7 @@ dependencies = [
     "lxml>=4.9",
     "confuse>=2.0",
     "xlsxwriter>=3.0",
-    "termcolor>=2.0",
-    "coloredlogs>=15.0",
+    "rich>=13.7",
     "requests>=2.28",
 ]
 
@@ -69,9 +68,10 @@ addopts = "-q"
 
 [tool.coverage.run]
 source = ["xnp"]
-# banner.py is ASCII art; __main__.py is the `python -m xnp` guard, exercised
-# by a subprocess test that coverage cannot follow.
-omit = ["xnp/banner.py", "xnp/__main__.py"]
+# __main__.py is the `python -m xnp` guard, exercised by a subprocess test that
+# coverage cannot follow.  banner.py used to be omitted as pure art; it now
+# picks its own artwork by encoding, which is behaviour worth covering.
+omit = ["xnp/__main__.py"]
 
 [tool.coverage.report]
 show_missing = true

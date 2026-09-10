@@ -71,6 +71,27 @@ xnp -d nmap/ -M -R --open -C all
 | `--no-validate` | Skip DTD validation (see below) |
 | `--update` | Update XNP to the latest release |
 | `-v`, `--verbose` | Debug logging |
+| `-q`, `--quiet` | Only errors and the generated output paths |
+| `--no-color` | Disable colour (`NO_COLOR` in the environment does the same) |
+
+`-v` and `-q` are mutually exclusive.
+
+### Terminal output
+
+**stdout carries the generated file paths and nothing else** — one bare path per
+line, unstyled and never wrapped. Everything else (the banner, the settings
+panel, the progress bar, warnings and the closing summary) goes to stderr. So
+this leaves you a usable list of what was produced:
+
+```
+xnp -d nmap/ -R -oF csv > written.txt
+```
+
+`--quiet` keeps those paths and silences the rest, which is the shape you want
+in a script. Colour is decided per stream, so redirecting one does not change
+the other; `--no-color`, a non-empty `NO_COLOR` and `TERM=dumb` each turn colour
+off everywhere. The progress bar only appears on a terminal, and only when there
+is more than one file to read.
 
 ### Input validation
 
