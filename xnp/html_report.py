@@ -94,10 +94,29 @@ def _json_for_script(payload: dict) -> str:
                 .replace("\u2029", "\\u2029"))
 
 
+def rescan_payload(config: Optional[XnpConfig] = None) -> dict:
+    """The rescan profiles, for the report's own command generator.
+
+    The profiles are the reader's, not ours -- they come out of
+    ``config.yaml`` -- so they travel in the payload rather than being baked
+    into the JavaScript, and the report's selector shows whatever that file
+    says.  See ``signatureGroups`` in ``report.js`` for the other half.
+    """
+    config = config or load_config()
+    return {
+        "default": config.rescan_default_profile,
+        "profiles": [{"id": profile.name, "args": profile.args,
+                      "description": profile.description,
+                      "description_en": profile.description_en}
+                     for profile in config.rescan_profiles],
+    }
+
+
 def build_payload(reports: Optional[list] = None, sources: Optional[list] = None,
                   merge: bool = False, only_open: bool = False,
                   title: Optional[str] = None, basename: Optional[str] = None,
-                  title_en: Optional[str] = None, lang: Optional[str] = None) -> dict:
+                  title_en: Optional[str] = None, lang: Optional[str] = None,
+                  rescan: Optional[dict] = None) -> dict:
     """Assemble the JSON payload embedded in the report."""
     reports = reports or []
     sources = sources or [None] * len(reports)
@@ -112,6 +131,7 @@ def build_payload(reports: Optional[list] = None, sources: Optional[list] = None
         "generated_at": datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"),
         "xnp_version": __version__,
         "only_open": bool(only_open),
+        "rescan": rescan or {},
         "scans": [scan_to_dict(report, source) for report, source in zip(reports, sources)],
         "hosts": build_hosts(reports, sources, merge=merge, only_open=only_open),
     }
@@ -120,7 +140,8 @@ def build_payload(reports: Optional[list] = None, sources: Optional[list] = None
 def payload_from_dataframe(df: pd.DataFrame, title: Optional[str] = None,
                            basename: Optional[str] = None,
                            title_en: Optional[str] = None,
-                           lang: Optional[str] = None) -> dict:
+                           lang: Optional[str] = None,
+                           rescan: Optional[dict] = None) -> dict:
     """Build a reduced payload when only the flat DataFrame is available.
 
     The writer contract is ``writer(df, filename)``, so ``df_to_html`` has to
@@ -185,6 +206,7 @@ def payload_from_dataframe(df: pd.DataFrame, title: Optional[str] = None,
         "basename": basename or "xnp-report",
         "generated_at": datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"),
         "xnp_version": __version__,
+        "rescan": rescan or {},
         "only_open": False,
         "scans": [],
         "hosts": list(hosts.values()),

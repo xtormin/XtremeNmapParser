@@ -19,6 +19,7 @@
   <a href="#instalación">Instalación</a> ·
   <a href="#comandos-habituales">Comandos</a> ·
   <a href="#flags">Flags</a> ·
+  <a href="#reescaneo-dirigido">Reescaneo</a> ·
   <a href="#el-informe-html">Informe HTML</a> ·
   <a href="#configuración">Configuración</a> ·
   <a href="#conviene-saber">Conviene saber</a> ·
@@ -51,6 +52,12 @@ Creación del informe con toda la información de una carpeta de forma recursiva
 
 ```bash
 xnp -d examples --show
+```
+
+Lo mismo, pero con idioma en español:
+
+```bash
+xnp -d examples --show --lang es
 ```
 
 ---
@@ -88,6 +95,8 @@ XLSX es una tabla de Excel de verdad, con los filtros ya puestos.
 | `-C`, `--columns` | `default` o `all` (añade la columna `Scripts`). El informe HTML siempre lo enseña todo |
 | `--open` | Exporta solo los puertos cuyo estado es `open` |
 | `--show` | Abre el informe HTML generado en el navegador al terminar |
+| `--rescan` | Imprime los comandos de nmap que reescanean solo lo que esta ejecución encontró. Acepta un nombre de perfil de `config.yaml`; sin nombre, el que esté por defecto |
+| `--rescan-args` | Reescanea con estos argumentos de nmap en vez de con un perfil: `--rescan-args="-sV --script vuln"` |
 | `--include-hostless` | Emite también una fila para los hosts sin puertos. Desactivado por defecto |
 | `--no-validate` | Salta la validación DTD — para salida compatible con nmap de otros escáneres |
 | `--lang` | `en` o `es` para el terminal y el idioma inicial del informe |
@@ -116,6 +125,56 @@ máquina sin navegador recibe un aviso, no un run fallido.
 
 ---
 
+## Reescaneo dirigido
+
+```bash
+xnp -d nmap/ --rescan
+```
+
+Un escaneo terminado ya sabe qué hosts están vivos y qué puertos tienen
+abiertos, que es justo lo que necesita la siguiente pasada. `--rescan` imprime
+los comandos de nmap que apuntan solo a eso, para no volver a barrer un host
+entero:
+
+```
+# 1 host  tcp 22,23  udp 161
+nmap -sV -sC --version-all -Pn -sS -sU -p T:22,23,U:161 10.10.10.5
+# 1 host  tcp 22,873
+nmap -sV -sC --version-all -Pn -p 22,873 10.10.10.31
+```
+
+En nmap la lista de puertos se aplica a todos los objetivos de la invocación,
+así que los hosts se agrupan **por firma de puertos**: los que tienen
+exactamente el mismo conjunto de puertos abiertos comparten comando, y a ninguno
+se le manda un puerto que no tiene.
+
+`--rescan` acepta un nombre de perfil de la configuración, o nada para el que
+esté por defecto. `--rescan-args` sustituye los argumentos por completo — ojo al
+`=`, o argparse lee el guion inicial como un flag:
+
+```bash
+xnp -d nmap/ --rescan vuln
+```
+
+```bash
+xnp -d nmap/ --rescan-args="-sV --script vuln -Pn"
+```
+
+La lista de puertos, los tipos de escaneo y `-6` se deciden por grupo, así que
+`-p`/`-F`/`--top-ports`/`-sn`/`-6` en un perfil se descartan con un aviso. Un
+grupo UDP lleva `-sU` y prefijos `U:`; uno mixto lleva además un tipo TCP
+explícito, porque `-sU` sin él hace que nmap ignore la mitad `T:`. A un grupo
+solo TCP se le deja el comportamiento por defecto de nmap salvo que el perfil
+pidiera uno, de modo que un `-sT` deliberado se respeta. Las direcciones se
+validan antes de llegar a una línea de comandos.
+
+El mismo generador está detrás del control de reescaneo del informe HTML, en la
+barra de herramientas de las pestañas *Servicios* y *Datos*, donde copia los
+comandos de lo que haya dejado el filtro. Los comandos de la terminal van a
+stderr, así que stdout sigue siendo la lista limpia de rutas generadas.
+
+---
+
 ## El informe HTML
 
 ```bash
@@ -129,7 +188,7 @@ sobrevive a que lo mandes por correo.
 | Pestaña | Qué responde |
 | --- | --- |
 | **Resumen** | ¿Qué hay expuesto? Cinco cifras y seis gráficas, y cada una filtra los datos al pulsarla |
-| **Servicios** | ¿Y ahora qué? Puertos abiertos agrupados por servicio, con listas de objetivos de un clic (`host:puerto`, IP, URL o una línea de `nmap` lista) |
+| **Servicios** | ¿Y ahora qué? Puertos abiertos agrupados por servicio, con listas de objetivos de un clic (`host:puerto`, IP, URL o [comandos de reescaneo](#reescaneo-dirigido)) |
 | **Datos** | Todo lo que produjo nmap: columnas ordenables, filtros estilo Excel y un panel de detalle por fila |
 
 Las tres comparten un filtro, y todas las cifras se recalculan sobre él. La
@@ -148,7 +207,10 @@ formatos de copiado, etiquetas de interés, fusión de escaneos, tema y contrast
 
 Todo funciona tal cual. Para cambiar los valores por defecto, edita
 [config/config.yaml](config/config.yaml): las columnas de cada opción de `-C`,
-el estilo del XLSX y los títulos del informe HTML. XNP lee la copia que va
+el estilo del XLSX, los títulos del informe HTML y el bloque `rescan:`, con los
+perfiles de nmap que ofrecen `--rescan` y el botón `nmap` del informe, y a qué
+estados de puerto apuntan. Un perfil añadido ahí se suma a los que vienen de
+serie; redefinir uno lo sustituye. XNP lee la copia que va
 dentro del paquete, luego `./config/config.yaml` y luego `$XNP_CONFIG`, en ese
 orden de precedencia.
 

@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional
 
-from xnp import __version__, banner, i18n, ui, update
+from xnp import __version__, banner, i18n, rescan, ui, update
 from xnp import files as func
 from xnp import output as out
 from xnp.config import load_config
@@ -78,6 +78,25 @@ def build_parser() -> argparse.ArgumentParser:
                         help='Open the generated HTML report in the browser '
                              'when the run finishes',
                         action="store_true")
+    # No choices= here on purpose: the profile names live in config.yaml, and
+    # parse_args() runs outside main()'s try, so a broken config would come out
+    # as a traceback rather than as an error.  The name is resolved in main().
+    parser.add_argument('--rescan',
+                        nargs='?',
+                        const='',
+                        default=None,
+                        metavar='PROFILE',
+                        help='Print the nmap commands that rescan only the hosts and '
+                             'ports this run found, grouped so no host gets a port it '
+                             'does not have. Takes a profile name from config.yaml; '
+                             'without one, the configured default')
+    parser.add_argument('--rescan-args',
+                        dest='rescan_args',
+                        default=None,
+                        metavar='ARGS',
+                        help='Rescan with these nmap arguments instead of a profile. '
+                             'Use --rescan-args="-sV --script vuln" so the leading '
+                             'dash is not read as a flag')
     parser.add_argument('--include-hostless',
                         dest='include_hostless',
                         action="store_true",
@@ -140,6 +159,14 @@ def validate_args(parser, args):
     if args.show and "html" not in args.outputformat:
         parser.error("--show needs the html format: drop -oF, or add html to it")
 
+    # Naming a profile and then replacing its arguments leaves the name
+    # meaning nothing; --rescan-args on its own already turns the rescan on.
+    # Only a *named* profile conflicts: a bare --rescan with --rescan-args is
+    # just turning the rescan on and saying what to run.
+    if args.rescan and args.rescan_args is not None:
+        parser.error("--rescan-args replaces the profile's arguments: "
+                     "pass one or the other")
+
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = build_parser()
@@ -152,7 +179,7 @@ def help():
     return build_parser().print_help(sys.stderr)
 
 
-def argument_rows(args, df_columns) -> list:
+def argument_rows(args, df_columns, rescan_profile=None) -> list:
     """The run's settings as (label, value) pairs for the arguments panel.
 
     Values are formatted here rather than in the renderer, and the empty ones
@@ -176,6 +203,7 @@ def argument_rows(args, df_columns) -> list:
         ("arg.columns", ", ".join(df_columns)),
         ("arg.open", yes if args.open else ""),
         ("arg.show", yes if args.show else ""),
+        ("arg.rescan", rescan_profile or ""),
         ("arg.hostless", yes if args.include_hostless else ""),
         ("arg.validation", "" if args.validate else i18n.t("value.no_validate")),
         # Only worth a row when it was asked for: otherwise it is just the
@@ -183,6 +211,48 @@ def argument_rows(args, df_columns) -> list:
         ("arg.language", args.lang or ""),
     ]
     return [(i18n.t(key), value) for key, value in rows if value]
+
+
+#: The profile name used when --rescan-args supplies the arguments directly.
+CUSTOM_PROFILE = "custom"
+
+
+def resolve_rescan(args, config):
+    """Work out ``(label, nmap arguments)`` for the run, or ``None``.
+
+    Called from inside ``main()``'s try block, which is why an unknown name can
+    be reported as an :class:`~xnp.errors.XnpError` with the list of the ones
+    that exist rather than by argparse, which cannot see the configuration.
+    """
+    if args.rescan_args is not None:
+        return CUSTOM_PROFILE, args.rescan_args
+    if args.rescan is None:
+        return None
+
+    name = args.rescan or config.rescan_default_profile
+    profile = config.rescan_profile(name)
+    if profile is None:
+        available = ", ".join(config.rescan_profile_names()) or "(none)"
+        raise XnpError(f" |x| Error | Unknown rescan profile: {name}. "
+                       f"Available: {available}")
+    return profile.name, profile.args
+
+
+def report_rescan(run, config, resolved) -> None:
+    """Build and show the rescan commands for what the run found."""
+    label, nmap_args = resolved
+    built = rescan.commands(run.targets, nmap_args, config.rescan_states)
+    if not built:
+        logger.warning(i18n.t("warn.rescan_empty",
+                              states=", ".join(config.rescan_states)))
+        return
+
+    # Every command drops the same profile flags, so this is said once.
+    dropped = sorted({flag for item in built for flag in item.dropped})
+    if dropped:
+        logger.warning(i18n.t("warn.rescan_dropped", flags=" ".join(dropped)))
+
+    ui.rescan(built, label)
 
 
 def parse_xml_files(single_xml, folder_multiple_xml, list_output_format, file_output_name,
@@ -351,7 +421,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         update.check_for_updates()
 
         df_columns = config.columns_for(args.columns)
-        ui.arguments(argument_rows(args, df_columns))
+        # Resolved before any parsing, so a typo in the profile name fails
+        # immediately instead of after a directory has been read.
+        resolved = resolve_rescan(args, config)
+        ui.arguments(argument_rows(args, df_columns,
+                                   resolved[0] if resolved else None))
 
         ui.section(i18n.t("section.parsing"))
         run = parse_xml_files(single_xml=args.file,
@@ -373,6 +447,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # list if there is no browser to hand it to.
         if args.show:
             show_reports(run.written)
+        # Last, so the commands you are about to copy are the closest thing to
+        # the prompt -- and after --show, which can fail noisily.
+        if resolved:
+            report_rescan(run, config, resolved)
         run.elapsed = time.monotonic() - started
         ui.summary(run)
         return 0

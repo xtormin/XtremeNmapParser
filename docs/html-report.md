@@ -16,10 +16,61 @@ tool wants:
 | `host:port` | `10.0.0.14:445`, one per line — for most tooling's `-iL` |
 | IP only | deduplicated addresses, one per line |
 | `URL` | `https://web01.corp.local:8443` — HTTP services only, scheme inferred from the TLS tunnel and the port, hostname preferred over the address |
-| `nmap` | a ready `nmap -sV -sC -p <ports> <hosts>` line for the group |
+| `nmap` | rescan commands for the group — see below |
 
 *Download every target* writes every group to one file with a comment header per
 group. *Detail* on any row jumps to it in the table with its side panel open.
+
+## Targeted rescan
+
+The rescan control sits in the toolbar of the *Services* and *Data* tabs,
+beside that tab's other hand-off button — *Download every target* and *Export
+selection to CSV* — because it is the same kind of thing: take what is on
+screen, give it to me. The profile and the button are one segmented control,
+and both tabs share one state: change the profile in one and the other follows.
+
+It copies the commands for **the current selection** — everything when nothing
+is filtered, and whatever the filter left when something is. The count in the
+label follows the filter live, so `service:ssh` turning *Copy 7 nmap commands*
+into *Copy 1 nmap command* tells you what you are about to get before you
+click. Open ports only: a closed port is not worth a second look, so a
+selection with none disables the button and says so.
+
+Inside an expanded group, the `nmap` shape does the same thing for that group
+alone, next to `host:port`, `IP only` and `URL`.
+
+A port list in nmap applies to every target of the invocation, so a single
+command over a group of hosts would probe ports most of them do not have.
+Instead the hosts are split **by port signature**: those whose open ports are
+exactly the same set share a command, and no host is ever sent a port it lacks.
+
+The profiles come from your own `config.yaml` (see
+[Configuration](../README.md#configuration)), so the list is whatever you put
+there. `custom` opens a box for arguments typed by hand, and with it a line
+showing what will actually be run — the flags that survive, not the ones you
+typed. For a named profile that same sentence is on the button's tooltip,
+where it stays out of the way.
+
+Three things the generator decides for you, whatever the profile says:
+
+- **The port list.** `-p`, `-p-`, `-F` and `--top-ports` in a profile are
+  dropped: the whole point is the ports the scan already found.
+- **The scan types.** A UDP group gets `-sU` and `U:` prefixes; a mixed group
+  also gets an explicit TCP type, because `-sU` without one makes nmap ignore
+  the `T:` half of the spec. A TCP-only group is left to nmap's own default
+  (`-sS` as root, `-sT` otherwise) unless the profile asked for a specific one,
+  so a deliberate `-sT` survives.
+- **`-6`.** Added for an IPv6 group and dropped for an IPv4 one. IPv4 and IPv6
+  hosts never share a command.
+
+Addresses are validated before they reach a command line: `addr` is CDATA in
+`nmap.dtd`, so anything that is not an IP address is dropped rather than
+escaped.
+
+The same commands are available in the terminal with `--rescan`, which reads
+`rescan.states` from the configuration and so also aims at `open|filtered` —
+the normal state of a UDP port. The report aims at what its own tabs count as
+open.
 
 ## The table
 

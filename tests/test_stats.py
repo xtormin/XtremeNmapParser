@@ -131,3 +131,32 @@ def test_bytes_written_sums_every_output():
 
 def test_no_report_has_no_services():
     assert stats.services_for(None) == Counter()
+
+
+# --- Rescan targets ---------------------------------------------------------
+
+def test_the_targets_carry_every_port_with_its_state(report):
+    targets = stats.targets_for(report("multi_host"))
+    assert ("10.0.0.3", "tcp", "443", "open") in targets
+    assert ("10.0.0.3", "udp", "53", "open") in targets
+    assert ("10.0.0.20", "tcp", "5432", "open") in targets
+
+
+def test_a_host_with_no_address_contributes_no_targets(report):
+    assert stats.targets_for(report("host_down")) == frozenset()
+
+
+def test_the_targets_of_two_files_are_unioned_not_summed(report):
+    run = stats.RunStats()
+    for name in ("dup_a", "dup_b"):
+        run.add(stats.FileResult.parsed(name, report(name)))
+    addresses = {target[0] for target in run.targets}
+    assert len(addresses) == len({address for address in addresses})
+    assert run.targets == (stats.targets_for(report("dup_a"))
+                           | stats.targets_for(report("dup_b")))
+
+
+def test_a_skipped_file_contributes_no_targets():
+    run = stats.RunStats()
+    run.add(stats.FileResult.failed("broken.xml", ValueError("nope")))
+    assert run.targets == set()

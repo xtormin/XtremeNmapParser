@@ -124,6 +124,9 @@ def df_to_html(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = No
 
     try:
         reports = context.get("reports")
+        # The reader's own profiles, on both paths: skipping the DataFrame
+        # branch would ship a report whose selector is empty.
+        rescan = html_report.rescan_payload(config)
         if reports:
             payload = html_report.build_payload(
                 reports=reports,
@@ -133,11 +136,12 @@ def df_to_html(df: pd.DataFrame, filename: str, config: Optional[XnpConfig] = No
                 title=config.html_title,
                 title_en=config.html_title_en,
                 basename=basename,
-                lang=lang)
+                lang=lang,
+                rescan=rescan)
         else:
             payload = html_report.payload_from_dataframe(
                 df, title=config.html_title, title_en=config.html_title_en,
-                basename=basename, lang=lang)
+                basename=basename, lang=lang, rescan=rescan)
 
         html_report.write(payload, filename, config)
     except (OSError, ValueError, TypeError) as exc:

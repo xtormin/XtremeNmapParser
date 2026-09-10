@@ -113,3 +113,69 @@ def test_a_local_config_directory_is_picked_up(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     reset_config()
     assert load_config().app_name == "Local override"
+
+
+# --- Rescan profiles --------------------------------------------------------
+
+def test_the_rescan_profiles_are_read_from_the_yaml():
+    config = load_config()
+    assert config.rescan_default_profile == "service"
+    assert "service" in config.rescan_profile_names()
+    assert config.rescan_profile("service").args.startswith("-sV")
+    assert config.rescan_profile("nope") is None
+
+
+def test_open_filtered_is_rescanned_by_default():
+    assert "open|filtered" in load_config().rescan_states
+
+
+def test_a_profile_added_locally_joins_the_packaged_ones(tmp_path, monkeypatch):
+    """confuse unions the keys of every source, so an override adds rather
+    than replaces -- which is what makes the block worth editing."""
+    local = tmp_path / "config"
+    local.mkdir()
+    (local / "config.yaml").write_text(
+        'rescan:\n  profiles:\n    mine:\n      args: "-sV -Pn"\n')
+    monkeypatch.chdir(tmp_path)
+    reset_config()
+    names = load_config().rescan_profile_names()
+    assert "mine" in names and "service" in names
+
+
+def test_a_locally_redefined_profile_keeps_its_packaged_description(tmp_path, monkeypatch):
+    local = tmp_path / "config"
+    local.mkdir()
+    (local / "config.yaml").write_text(
+        'rescan:\n  profiles:\n    service:\n      args: "-sV only"\n')
+    monkeypatch.chdir(tmp_path)
+    reset_config()
+    profile = load_config().rescan_profile("service")
+    assert profile.args == "-sV only"
+    assert profile.description
+
+
+def test_an_unknown_default_profile_is_a_config_error(tmp_path, monkeypatch):
+    override = tmp_path / "override.yaml"
+    override.write_text('rescan:\n  default_profile: "nope"\n')
+    reset_config()
+    with pytest.raises(XnpConfigError, match="default_profile"):
+        load_config(override)
+
+
+def test_a_profile_without_arguments_is_a_config_error(tmp_path, monkeypatch):
+    override = tmp_path / "override.yaml"
+    override.write_text('rescan:\n  profiles:\n    broken:\n      description: "x"\n')
+    reset_config()
+    with pytest.raises(XnpConfigError, match="Invalid configuration"):
+        load_config(override)
+
+
+def test_a_config_built_by_hand_still_needs_no_rescan_fields():
+    config = XnpConfig(
+        app_name="test", nmap_file_extension=".xml", sheet_name="Sheet",
+        header_color="#000000", header_text_color="#FFFFFF",
+        table_style="Table Style Medium 16",
+        columns_default=("IP", "Port"), columns_all=("IP", "Port", "Scripts"),
+    )
+    assert config.rescan_profiles == ()
+    assert config.rescan_profile_names() == []

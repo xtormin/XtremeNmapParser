@@ -460,3 +460,51 @@ def test_english_is_what_a_neutral_locale_gets(run_cli, tmp_path, fixtures_dir):
 
     assert run_cli(["-f", str(scan), "-oF", "html"], cwd=tmp_path) == 0
     assert '<html lang="en"' in (tmp_path / "scan.html").read_text(encoding="utf-8")
+
+
+# --- Targeted rescan --------------------------------------------------------
+
+def test_rescan_prints_one_command_per_port_signature(run_cli, capsys, xml, tmp_path):
+    scan = shutil.copy(xml("multi_host"), tmp_path / "multi_host.xml")
+    assert run_cli(["-f", str(scan), "-oF", "csv", "--rescan"]) == 0
+    err = capsys.readouterr().err
+    # 10.0.0.3 has 443/tcp and 53/udp; 10.0.0.20 only has 5432/tcp.
+    assert "-sU -p T:443,U:53 10.0.0.3" in err
+    assert "-p 5432 10.0.0.20" in err
+    assert err.count("nmap ") == 2
+
+
+def test_the_rescan_commands_never_reach_the_stdout_path_list(run_cli, capsys, xml,
+                                                              tmp_path):
+    scan = shutil.copy(xml("multi_host"), tmp_path / "multi_host.xml")
+    assert run_cli(["-f", str(scan), "-oF", "csv", "--rescan"]) == 0
+    out = capsys.readouterr().out
+    assert out.strip() == str(tmp_path / "multi_host.csv")
+
+
+def test_an_ipv6_scan_is_rescanned_with_dash_six(run_cli, capsys, xml, tmp_path):
+    scan = shutil.copy(xml("ipv6_host"), tmp_path / "ipv6_host.xml")
+    assert run_cli(["-f", str(scan), "-oF", "csv", "--rescan"]) == 0
+    assert "-6 -p 80 2001:db8::1" in capsys.readouterr().err
+
+
+def test_a_directory_rescan_covers_every_file_it_read(run_cli, capsys, scans):
+    assert run_cli(["-d", str(scans), "-oF", "csv", "--rescan", "recheck"]) == 0
+    err = capsys.readouterr().err
+    assert "nmap " in err
+    assert "-Pn -n --reason" in err
+
+
+def test_an_unknown_rescan_profile_stops_the_run(run_cli, capsys, xml, tmp_path):
+    scan = shutil.copy(xml("multi_host"), tmp_path / "multi_host.xml")
+    assert run_cli(["-f", str(scan), "-oF", "csv", "--rescan", "nope"]) == 1
+    assert "Unknown rescan profile" in capsys.readouterr().err
+    # It failed before parsing, so nothing was written.
+    assert not list(tmp_path.glob("*.csv"))
+
+
+def test_a_scan_with_nothing_open_says_so_instead_of_printing_nothing(run_cli, capsys,
+                                                                      xml, tmp_path):
+    scan = shutil.copy(xml("host_down"), tmp_path / "host_down.xml")
+    run_cli(["-f", str(scan), "-oF", "csv", "--rescan"])
+    assert "--rescan" in capsys.readouterr().err

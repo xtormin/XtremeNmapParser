@@ -16,11 +16,65 @@ formato que espera la siguiente herramienta:
 | `host:puerto` | `10.0.0.14:445`, uno por línea — para el `-iL` de casi cualquier herramienta |
 | `solo IP` | direcciones deduplicadas, una por línea |
 | `URL` | `https://web01.corp.local:8443` — solo para servicios HTTP; el esquema se deduce del túnel TLS y del puerto, y se prefiere el hostname a la dirección |
-| `nmap` | una línea `nmap -sV -sC -p <puertos> <hosts>` lista para el grupo |
+| `nmap` | comandos de reescaneo para el grupo — ver más abajo |
 
 *Descargar todos los objetivos* escribe todos los grupos en un fichero con una
 cabecera de comentario por grupo. *Detalle* en cualquier fila salta a ella en la
 tabla con su panel lateral abierto.
+
+## Reescaneo dirigido
+
+El control de reescaneo está en la barra de herramientas de las pestañas
+*Servicios* y *Datos*, junto al otro botón de entrega de esa pestaña
+—*Descargar todos los objetivos* y *Exportar selección a CSV*—, porque es de la
+misma clase de cosa: coge lo que hay en pantalla y dámelo. El perfil y el botón
+son un único control segmentado, y las dos pestañas comparten estado: cambia el
+perfil en una y la otra la sigue.
+
+Copia los comandos de **la selección actual**: todo si no hay filtro, y lo que
+el filtro haya dejado si lo hay. El número de la etiqueta sigue al filtro en
+vivo, así que ver cómo `service:ssh` convierte *Copiar 7 comandos nmap* en
+*Copiar 1 comando nmap* te dice lo que te vas a llevar antes de pulsar. Solo
+puertos abiertos: un puerto cerrado no merece una segunda pasada, así que una
+selección sin ninguno deshabilita el botón y lo dice.
+
+Dentro de un grupo desplegado, el formato `nmap` hace lo mismo para ese grupo
+solo, junto a `host:puerto`, `solo IP` y `URL`.
+
+En nmap la lista de puertos se aplica a todos los objetivos de la invocación,
+así que un único comando sobre un grupo de hosts sondearía puertos que la
+mayoría no tiene. En su lugar los hosts se dividen **por firma de puertos**: los
+que tienen exactamente el mismo conjunto de puertos abiertos comparten comando,
+y a ninguno se le manda un puerto que no tiene.
+
+Los perfiles salen de tu propio `config.yaml` (ver
+[Configuración](../README.es.md#configuración)), así que la lista es la que tú
+pongas. `personalizado` abre una caja para escribirlos a mano, y con ella una
+línea que muestra lo que se va a ejecutar de verdad: los flags que sobreviven,
+no los que escribiste. Con un perfil con nombre esa misma frase está en el
+tooltip del botón, donde no estorba.
+
+Tres cosas las decide el generador, diga lo que diga el perfil:
+
+- **La lista de puertos.** `-p`, `-p-`, `-F` y `--top-ports` en un perfil se
+  descartan: la gracia es precisamente escanear los puertos que ya se
+  encontraron.
+- **Los tipos de escaneo.** Un grupo UDP lleva `-sU` y prefijos `U:`; uno mixto
+  lleva además un tipo TCP explícito, porque `-sU` sin él hace que nmap ignore
+  la mitad `T:` de la especificación. A un grupo solo TCP se le deja el
+  comportamiento por defecto de nmap (`-sS` como root, `-sT` si no) salvo que el
+  perfil pidiera uno concreto, de modo que un `-sT` deliberado se respeta.
+- **`-6`.** Se añade en un grupo IPv6 y se descarta en uno IPv4. Los hosts IPv4
+  e IPv6 nunca comparten comando.
+
+Las direcciones se validan antes de llegar a una línea de comandos: `addr` es
+CDATA en `nmap.dtd`, así que lo que no sea una dirección IP se descarta en vez
+de escaparse.
+
+Los mismos comandos están en la terminal con `--rescan`, que lee `rescan.states`
+de la configuración y por tanto apunta también a `open|filtered` —el estado
+normal de un puerto UDP—. El informe apunta a lo que sus propias pestañas
+cuentan como abierto.
 
 ## La tabla
 

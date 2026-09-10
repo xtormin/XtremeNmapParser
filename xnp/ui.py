@@ -18,6 +18,11 @@ Stream policy, and why:
   generated file, so ``xnp -d nmap/ > written.txt`` is a useful list instead of
   a wall of ASCII art.
 
+The rescan block is the one thing ``--quiet`` does not silence: it was asked
+for by name with a flag, so suppressing it would make the flag do nothing.  It
+still goes to stderr, because stdout is contractually the list of paths and
+nmap commands mixed into it would break that pipe.
+
 That split is also what makes the live bar safe.  ``Progress`` wraps a ``Live``
 which installs itself as a *render hook* on its console, so that every
 ``Console.print`` erases the bar, writes the line and redraws the bar beneath
@@ -48,6 +53,7 @@ from rich.text import Text
 from rich.theme import Theme
 
 from xnp import i18n
+from xnp.rescan import needs_root
 
 #: The level colours are carried over verbatim from the ``coloredlogs`` setup
 #: this module replaced, so a warning looks like it always did.
@@ -66,6 +72,7 @@ THEME = Theme({
     "xnp.count": "bold cyan",
     "xnp.path": "cyan",
     "xnp.unit": "dim",
+    "xnp.cmd": "bold white",
 })
 
 _err: Optional[Console] = None
@@ -346,6 +353,42 @@ def output_files(written) -> None:
         # soft_wrap so a long path is never wrapped, folded or cropped: that is
         # the machine-readable contract.
         out().print(item.path, soft_wrap=True)
+
+
+def rescan(commands, label: str = "") -> None:
+    """The nmap commands for a targeted rescan, ready to copy.
+
+    Deliberately not a ``Panel``: a border is dragged along by a mouse
+    selection, and a bordered panel folds a long command, which would put real
+    newlines into the middle of what gets pasted into a shell.  Flat lines with
+    ``soft_wrap`` are what :func:`output_files` prints paths with, for the same
+    reason.
+    """
+    if not commands:
+        return
+
+    if _quiet:
+        for item in commands:
+            console().print(item.command, soft_wrap=True)
+        return
+
+    section(i18n.t("section.rescan") + (f"  ({label})" if label else ""))
+
+    for item in commands:
+        group = item.group
+        note = Text("# ", style="xnp.unit")
+        note.append_text(_quantity(len(group.hosts), "unit.host"))
+        for protocol, ports in (("tcp", group.tcp), ("udp", group.udp)):
+            if not ports:
+                continue
+            note.append("  " + protocol + " ", style="xnp.unit")
+            note.append(",".join(str(port) for port in ports), style="xnp.unit")
+        console().print(note, overflow="fold")
+        console().print(Text(item.command, style="xnp.cmd"), soft_wrap=True)
+
+    if any(needs_root(item.command) for item in commands):
+        console().line()
+        console().print(Text(i18n.t("rescan.root"), style="xnp.unit"), overflow="fold")
 
 
 def _elapsed(seconds: float) -> str:

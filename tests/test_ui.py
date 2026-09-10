@@ -387,3 +387,72 @@ def test_a_longer_version_does_not_shift_the_wordmark():
     long = banner.compose(banner.BLOCK, "v10.20.30", "f")
 
     assert short.split("\n")[1] == long.split("\n")[1]
+
+
+# --- The rescan block -------------------------------------------------------
+
+def _commands(args="-sV -sC -Pn"):
+    from xnp import rescan
+
+    return rescan.commands([("10.0.0.5", "tcp", 22, "open"),
+                            ("10.0.0.5", "tcp", 80, "open"),
+                            ("10.0.0.9", "udp", 161, "open")], args, ("open",))
+
+
+def test_the_rescan_block_lands_on_stderr_and_never_on_stdout(capsys):
+    ui.setup()
+    ui.rescan(_commands(), "service")
+    captured = capsys.readouterr()
+    assert "nmap " in captured.err
+    assert captured.out == ""
+
+
+def test_every_group_gets_its_own_command(capsys):
+    ui.setup()
+    ui.rescan(_commands(), "service")
+    err = capsys.readouterr().err
+    assert err.count("nmap ") == 2
+    assert "-p 22,80 10.0.0.5" in err
+    assert "-p U:161 10.0.0.9" in err
+
+
+def test_quiet_prints_the_bare_commands_without_the_chrome(capsys):
+    """--rescan was asked for by name, so quiet must not silence it."""
+    ui.setup(quiet=True)
+    ui.rescan(_commands(), "service")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "nmap -sV -sC -Pn -p 22,80 10.0.0.5",
+        "nmap -sV -sC -Pn -sU -p U:161 10.0.0.9",
+    ]
+
+
+def test_a_command_is_never_folded_in_the_middle(capsys):
+    """A wrapped command carries real newlines into whatever it is pasted in."""
+    from xnp import rescan
+
+    hosts = [(f"10.0.{block}.{host}", "tcp", 80, "open")
+             for block in range(4) for host in range(1, 40)]
+    ui.setup()
+    ui._err.width = 60
+    ui.rescan(rescan.commands(hosts, "-sV -Pn", ("open",)), "service")
+    lines = [line for line in capsys.readouterr().err.splitlines() if "nmap " in line]
+    assert len(lines) == 1
+    assert lines[0].endswith("10.0.3.39")
+
+
+def test_nothing_to_rescan_prints_nothing(capsys):
+    ui.setup()
+    ui.rescan([], "service")
+    assert capsys.readouterr().err == ""
+
+
+def test_the_root_note_only_shows_when_a_command_needs_root(capsys):
+    ui.setup()
+    ui.rescan(_commands(args="-sT -sV"), "custom")
+    with_udp = capsys.readouterr().err
+    ui.rescan([_commands(args="-sT -sV")[0]], "custom")
+    tcp_only = capsys.readouterr().err
+    assert "root" in with_udp
+    assert "root" not in tcp_only

@@ -39,3 +39,32 @@ html:
   # The report ships in Spanish and English; the reader picks.
   title: "Informe de superficie de red"
   title_en: "Network exposure report"
+# Targeted rescan: the nmap commands XNP builds from what a scan already found.
+# Edit these, or add your own -- a profile defined in config/config.yaml is
+# added to the ones shipped here, and redefining one of these replaces it.
+rescan:
+  default_profile: "service"
+  # Port states worth aiming at again.  open|filtered is the norm in UDP: it
+  # means nmap could not rule the port out, which is exactly what a second,
+  # slower pass over a handful of ports settles.
+  states: ["open", "open|filtered"]
+  # Only what to *do* with the ports goes here.  The port list, the scan types
+  # and -6 are decided per group of hosts, so -p/-F/--top-ports/-sn/-6 in these
+  # arguments are dropped (with a warning) rather than fighting the generator.
+  profiles:
+    service:
+      args: "-sV -sC --version-all -Pn"
+      description: "Versión exacta y scripts por defecto"
+      description_en: "Exact version and default scripts"
+    vuln:
+      args: "-sV --script vuln -Pn"
+      description: "Scripts NSE de vulnerabilidades conocidas"
+      description_en: "NSE scripts for known vulnerabilities"
+    recheck:
+      args: "-sS -Pn -n --reason"
+      description: "Comprobar que siguen abiertos, sin detección de versión"
+      description_en: "Confirm they are still open, no version detection"
+    full:
+      args: "-A --script default,vuln,safe -Pn"
+      description: "Todo el arsenal: OS, versión, traceroute y scripts"
+      description_en: "The full arsenal: OS, version, traceroute and scripts"

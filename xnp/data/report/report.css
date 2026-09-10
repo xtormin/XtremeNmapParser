@@ -199,6 +199,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   flex-wrap: wrap;
 }
 
+/* Square, quiet, and only as wide as its glyph: it is a way in, not an action. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  line-height: 0;
+  color: var(--text-3);
+}
+.icon-btn:hover { color: var(--text); }
+.icon-btn.on { color: var(--accent-text); border-color: var(--accent); }
+
 .tabs { display: flex; gap: 4px; background: var(--surface-2); border-radius: 10px; padding: 4px; margin-left: auto; }
 .tabs button {
   background: transparent;
@@ -373,7 +385,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   color: var(--text-2);
 }
 .targets-bar .grow { flex: 1; }
-#group-by {
+#group-by,
+#rescan-profile {
   font: inherit;
   font-size: 12.5px;
   font-family: var(--sans);
@@ -385,6 +398,54 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 }
 #groups-summary { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); }
 .targets-hint { padding-bottom: 14px; }
+
+/* --- The rescan control --------------------------------------------------
+ *
+ * It lives in the toolbar of each tab, next to that tab's other hand-off
+ * button (Download every target, Export selection to CSV), because it is the
+ * same kind of thing: take the current selection, give it to me.  The profile
+ * and the button are welded into one segmented control so the pair reads as a
+ * single action rather than as two loose widgets.
+ */
+.rescan { display: inline-flex; align-items: stretch; }
+.rescan-profile {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--sans);
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius) 0 0 var(--radius);
+  border-right: 0;
+  padding: 5px 6px 5px 9px;
+}
+.rescan-profile:hover { color: var(--text); }
+.rescan-copy { border-radius: 0 var(--radius) var(--radius) 0; }
+.rescan-copy:disabled { opacity: .5; cursor: default; }
+.rescan-copy:disabled:hover { background: var(--surface); color: var(--text-2); }
+/* Wide enough for a real set of nmap flags; both wrap to their own line in the
+   toolbar rather than squeezing the controls beside them. */
+.rescan-args {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 5px 9px;
+  flex: 1 1 100%;
+  order: 1;
+}
+/* What the button will actually produce -- shown only for hand-typed
+   arguments, where it says which of them survived. */
+.rescan-hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  flex: 1 1 100%;
+  order: 2;
+}
 
 .group {
   background: var(--surface);
@@ -818,6 +879,20 @@ footer {
   gap: 14px;
   flex-wrap: wrap;
 }
+
+footer .foot-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 4px 9px;
+  color: var(--text-3);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: color .12s ease, border-color .12s ease;
+}
+footer .foot-repo:hover { color: var(--accent-text); border-color: var(--accent); }
 
 /* Scan metadata: was header chrome, now footnotes -- it says where the report
    came from, which matters less than the data itself once you're reading it. */

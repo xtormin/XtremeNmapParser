@@ -12,6 +12,9 @@ scanned":
 * in merged mode the frame is deduplicated, so its length is rows exported,
   not ports seen.
 
+The same reasoning makes the report the source for the rescan targets: a
+command aimed at "what is open" must not shift when you change ``--open``.
+
 Walking the report costs O(hosts + ports) over an already-materialised tree --
 the same walk the row builder does.
 
@@ -101,6 +104,29 @@ def services_for(report) -> Counter:
     return counter
 
 
+def targets_for(report) -> frozenset:
+    """Every port with a state, as ``(address, protocol, port, state)``.
+
+    Filtering by state is left to :mod:`xnp.rescan` and its configuration, so
+    that ``rescan.states`` can mean anything without this function having an
+    opinion.  The volume is bounded in practice because nmap collapses the
+    dominant state into ``<extraports>`` rather than listing it port by port.
+    """
+    if report is None:
+        return frozenset()
+
+    targets = set()
+    for host in report.hosts:
+        address = _address(host)
+        if not address:
+            continue
+        for port in host.ports:
+            if not port.portid or not port.state:
+                continue
+            targets.add((address, port.protocol, port.portid, port.state[0].state))
+    return frozenset(targets)
+
+
 @dataclass
 class FileResult:
     """The outcome of one input file, handed to the CLI as it happens."""
@@ -110,12 +136,14 @@ class FileResult:
     counts: Optional[FileCounts] = None
     ips: set = field(default_factory=set)
     services: Counter = field(default_factory=Counter)
+    targets: frozenset = frozenset()
     error: Optional[BaseException] = None
 
     @classmethod
     def parsed(cls, path: str, report) -> "FileResult":
         return cls(path=path, ok=True, counts=counts_for(report),
-                   ips=ips_for(report), services=services_for(report))
+                   ips=ips_for(report), services=services_for(report),
+                   targets=targets_for(report))
 
     @classmethod
     def failed(cls, path: str, error: BaseException) -> "FileResult":
@@ -138,6 +166,9 @@ class RunStats:
     ports: int = 0
     open_ports: int = 0
     services: Counter = field(default_factory=Counter)
+    #: Every ``(address, protocol, port, state)`` seen, unioned across files so
+    #: the rescan answers "what did this run find", not "what was in each file".
+    targets: set = field(default_factory=set)
     written: list = field(default_factory=list)
     #: Rows actually exported.  Only set for a merged run, where the collapse
     #: from ports-seen to rows-written is worth showing rather than hiding.
@@ -157,6 +188,7 @@ class RunStats:
         self.parsed += 1
         self.ips |= result.ips
         self.services += result.services
+        self.targets |= result.targets
         if result.counts is not None:
             self.hosts_up += result.counts.hosts_up
             self.ports += result.counts.ports

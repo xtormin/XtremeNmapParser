@@ -2,10 +2,11 @@
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
-from xnp import html_report
+from xnp import html_report, output
 from xnp.output import df_output_filters, df_to_html
 from xnp.parser import NmapParser
 from xnp.xml_report import NmapXMLReport
@@ -295,3 +296,98 @@ def test_the_empty_cell_marker_is_translated():
     script = html_report.SCRIPT.read_text(encoding="utf-8")
     assert '"blank": "(vacío)"' in script
     assert '"blank": "(empty)"' in script
+
+
+# --- The report's own rescan generator --------------------------------------
+
+def test_the_rescan_profiles_travel_in_the_payload(tmp_path, xml):
+    from xnp.config import load_config
+    from xnp.parser import NmapParser
+
+    parser = NmapParser(xml("multi_host"))
+    df = parser.parse_file()
+    target = tmp_path / "report.html"
+    output.df_to_html(df, str(target), config=load_config(),
+                      context={"reports": [parser.report], "sources": [xml("multi_host")]})
+    payload = embedded_payload(target.read_text(encoding="utf-8"))
+    assert payload["rescan"]["default"] == "service"
+    assert "service" in [profile["id"] for profile in payload["rescan"]["profiles"]]
+
+
+def test_the_dataframe_payload_carries_the_rescan_profiles_too(tmp_path, xml):
+    """The fallback path must not ship a report with an empty selector."""
+    from xnp.config import load_config
+    from xnp.parser import NmapParser
+
+    df = NmapParser(xml("multi_host")).parse_file()
+    target = tmp_path / "fallback.html"
+    output.df_to_html(df, str(target), config=load_config(), context={})
+    payload = embedded_payload(target.read_text(encoding="utf-8"))
+    assert payload["rescan"]["profiles"]
+
+
+def report_script():
+    return (Path(html_report.__file__).parent / "data" / "report" / "report.js").read_text(
+        encoding="utf-8")
+
+
+def message_tables():
+    """The report's two message tables, as ``(spanish, english)`` key sets."""
+    source = report_script()
+    block = source[source.index("var I18N = {"):source.index("function t(")]
+    spanish, english = block.index("es: {"), block.index("en: {")
+
+    def keys(text):
+        return set(re.findall(r'"([a-zA-Z0-9_.]+)":', text))
+
+    return keys(block[spanish:english]), keys(block[english:])
+
+
+def test_the_rescan_bar_ships_in_both_languages():
+    spanish, english = message_tables()
+    wanted = {"rescan.profile", "rescan.custom", "rescan.hint", "rescan.argsPlaceholder",
+               "rescan.copyAll", "rescan.copyOne", "rescan.copyNone"}
+    assert {"foot.repo", "a11y.hint_toggle"} <= spanish
+    assert wanted <= spanish
+    assert wanted <= english
+
+
+def test_both_report_languages_carry_the_same_keys():
+    """The report has its own message tables, and nothing else checks them."""
+    spanish, english = message_tables()
+    assert spanish == english
+
+
+def report_markup():
+    return (Path(html_report.__file__).parent / "data" / "report" / "report.html").read_text(
+        encoding="utf-8")
+
+
+def test_the_rescan_control_sits_in_the_toolbar_of_both_tabs():
+    """It belongs beside each tab's other hand-off button, not in a strip of
+    its own -- and it is wanted from wherever the filter was set."""
+    markup = report_markup()
+    targets = markup[markup.index('class="targets-bar"'):markup.index('id="groups"')]
+    tools = markup[markup.index('class="table-tools"'):markup.index('class="table-scroll"')]
+    for toolbar, sibling in ((targets, 'id="export-targets"'), (tools, 'id="csv"')):
+        assert 'class="rescan-profile"' in toolbar
+        assert 'class="rescan-copy"' in toolbar
+        assert sibling in toolbar
+
+
+def test_the_query_help_is_behind_a_toggle():
+    """It explains the syntax once; it should not hold a paragraph for ever."""
+    markup = report_markup()
+    hint = markup[markup.index('<p class="hint" id="hint"'):]
+    assert hint[:hint.index(">")].endswith("hidden")
+    bar = markup[markup.index('class="bar"'):markup.index('id="panel-summary"')]
+    assert bar.index('id="hint-toggle"') < bar.index('id="reset"')
+    assert 'aria-controls="hint"' in bar
+
+
+def test_the_footer_links_to_the_project():
+    markup = report_markup()
+    footer = markup[markup.index("<footer>"):markup.index("</footer>")]
+    assert "https://github.com/xtormin/XtremeNmapParser" in footer
+    assert 'rel="noopener noreferrer"' in footer
+    assert 'data-i18n="foot.repo"' in footer

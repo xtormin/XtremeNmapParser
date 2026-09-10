@@ -27,6 +27,8 @@ MESSAGES = {
         "panel.summary": "Summary",
         "section.parsing": "Parsing files",
         "section.output": "Output files",
+        "section.rescan": "Targeted rescan",
+        "rescan.root": "Commands with a raw-socket scan need root (sudo).",
         "progress.parsing": "Parsing",
 
         # The arguments panel
@@ -39,6 +41,7 @@ MESSAGES = {
         "arg.columns": "Columns (-C)",
         "arg.open": "Open ports (--open)",
         "arg.show": "Open the report (--show)",
+        "arg.rescan": "Rescan profile (--rescan)",
         "arg.hostless": "Include hostless",
         "arg.validation": "DTD validation",
         "arg.language": "Language (--lang)",
@@ -80,6 +83,10 @@ MESSAGES = {
         "warn.nothing_to_show": "--show: the run produced no HTML report to open",
         "warn.show_failed": "--show: could not open {path}: {reason}",
         "warn.show_limited": "--show: {total} reports were written, opening the first {shown}",
+        "warn.rescan_empty": "--rescan: nothing in the configured states "
+                             "({states}) to aim at",
+        "warn.rescan_dropped": "--rescan: {flags} dropped -- the ports and scan "
+                               "types are decided per group",
 
         # The update check
         "update.available": ("XNP {latest} is available (you have {current}) "
@@ -93,6 +100,8 @@ MESSAGES = {
         "panel.summary": "Resumen",
         "section.parsing": "Analizando ficheros",
         "section.output": "Ficheros generados",
+        "section.rescan": "Reescaneo dirigido",
+        "rescan.root": "Los comandos con escaneo de socket crudo necesitan root (sudo).",
         "progress.parsing": "Analizando",
 
         "arg.file": "Fichero (-f)",
@@ -104,6 +113,7 @@ MESSAGES = {
         "arg.columns": "Columnas (-C)",
         "arg.open": "Solo puertos abiertos (--open)",
         "arg.show": "Abrir el informe (--show)",
+        "arg.rescan": "Perfil de reescaneo (--rescan)",
         "arg.hostless": "Incluir hosts sin puertos",
         "arg.validation": "Validación DTD",
         "arg.language": "Idioma (--lang)",
@@ -142,6 +152,10 @@ MESSAGES = {
         "warn.nothing_to_show": "--show: la ejecución no generó ningún informe HTML que abrir",
         "warn.show_failed": "--show: no se pudo abrir {path}: {reason}",
         "warn.show_limited": "--show: se generaron {total} informes, se abren los {shown} primeros",
+        "warn.rescan_empty": "--rescan: no hay nada en los estados configurados "
+                             "({states}) a lo que apuntar",
+        "warn.rescan_dropped": "--rescan: se descarta {flags}; los puertos y los "
+                               "tipos de escaneo se deciden por grupo",
 
         "update.available": ("XNP {latest} está disponible (tienes {current}) "
                              "- actualiza con: xnp --update"),

@@ -4,6 +4,7 @@ import pytest
 
 from xnp import __version__
 from xnp.cli import argument_rows, build_parser, parse_args
+from xnp.errors import XnpError
 from xnp.output import WRITERS
 
 pytestmark = pytest.mark.usefixtures("quiet_logs")
@@ -66,7 +67,8 @@ def test_help_mentions_every_flag(capsys):
     out = capsys.readouterr().out
     for flag in ("--file", "--directory", "--outputformat", "--outputname",
                  "--merger", "--no-merger", "--recursive", "--no-recursive",
-                 "--columns", "--open", "--quiet", "--no-color", "--lang"):
+                 "--columns", "--open", "--quiet", "--no-color", "--lang",
+                 "--rescan", "--rescan-args"):
         assert flag in out
 
 
@@ -344,3 +346,80 @@ def test_show_with_nothing_to_open_says_so_instead_of_failing(monkeypatch):
     assert cli_module.show_reports([]) == []
     assert cli_module.show_reports(written("csv")) == []
     assert opened == []
+
+
+# --- Targeted rescan --------------------------------------------------------
+
+def test_rescan_is_off_unless_asked_for():
+    assert parse_args(["-f", __file__]).rescan is None
+
+
+def test_rescan_without_a_name_uses_the_configured_default():
+    from xnp.cli import resolve_rescan
+    from xnp.config import load_config
+
+    config = load_config()
+    label, args = resolve_rescan(parse_args(["-f", __file__, "--rescan"]), config)
+    assert label == config.rescan_default_profile
+    assert args == config.rescan_profile(label).args
+
+
+def test_rescan_takes_a_profile_name():
+    from xnp.cli import resolve_rescan
+    from xnp.config import load_config
+
+    label, args = resolve_rescan(parse_args(["-f", __file__, "--rescan", "vuln"]),
+                                 load_config())
+    assert label == "vuln"
+    assert "vuln" in args
+
+
+def test_rescan_args_alone_turns_the_rescan_on():
+    from xnp.cli import CUSTOM_PROFILE, resolve_rescan
+    from xnp.config import load_config
+
+    args = parse_args(["-f", __file__, "--rescan-args=-sV -Pn"])
+    assert resolve_rescan(args, load_config()) == (CUSTOM_PROFILE, "-sV -Pn")
+
+
+def test_empty_rescan_args_still_turns_the_rescan_on():
+    """An explicit empty string is an answer: these arguments, which are none."""
+    from xnp.cli import CUSTOM_PROFILE, resolve_rescan
+    from xnp.config import load_config
+
+    args = parse_args(["-f", __file__, "--rescan-args="])
+    assert resolve_rescan(args, load_config()) == (CUSTOM_PROFILE, "")
+
+
+def test_a_bare_rescan_alongside_rescan_args_is_fine():
+    from xnp.cli import CUSTOM_PROFILE, resolve_rescan
+    from xnp.config import load_config
+
+    args = parse_args(["-f", __file__, "--rescan", "--rescan-args=-sV"])
+    assert resolve_rescan(args, load_config()) == (CUSTOM_PROFILE, "-sV")
+
+
+def test_rescan_and_rescan_args_together_are_rejected(capsys):
+    with pytest.raises(SystemExit):
+        parse_args(["-f", __file__, "--rescan", "vuln", "--rescan-args=-sV"])
+    assert "one or the other" in capsys.readouterr().err
+
+
+def test_an_unknown_rescan_profile_names_the_ones_that_exist():
+    from xnp.cli import resolve_rescan
+    from xnp.config import load_config
+
+    with pytest.raises(XnpError, match="Available: service"):
+        resolve_rescan(parse_args(["-f", __file__, "--rescan", "nope"]), load_config())
+
+
+def test_the_rescan_profile_shows_in_the_arguments_panel():
+    args = parse_args(["-f", __file__, "--rescan", "vuln"])
+    labels = dict(argument_rows(args, ["IP"], "vuln"))
+    assert "vuln" in labels.values()
+
+
+def test_the_arguments_panel_still_takes_two_positionals():
+    """argument_rows is called with two arguments all over this file."""
+    rows = argument_rows(parse_args(["-f", __file__]), ["IP"])
+    assert all(value for _, value in rows)
