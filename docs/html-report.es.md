@@ -67,9 +67,27 @@ Tres cosas las decide el generador, diga lo que diga el perfil:
 - **`-6`.** Se añade en un grupo IPv6 y se descarta en uno IPv4. Los hosts IPv4
   e IPv6 nunca comparten comando.
 
+Los argumentos admiten variables `$[...]` —`$[IP]`, `$[HOSTNAME]`, `$[PORTS]`,
+`$[TCP_PORTS]`, `$[UDP_PORTS]`— que se sustituyen en cada comando: es lo que
+convierte `-oA scans/$[HOSTNAME]` en un fichero de salida por objetivo en vez de
+uno que sobrescribe cada comando. `$[IP]` y `$[HOSTNAME]` nombran a un solo
+host, así que usar una divide su grupo en un comando por host: un valor que
+cambia de un host a otro no se puede escribir una sola vez en un comando que
+comparten. `$[HOSTNAME]` cae a la dirección si el escaneo no resolvió el nombre,
+y un nombre que no sea de esos se queda en el comando en vez de vaciarse: la
+línea de debajo de la caja dice cuál, así que un `$[HOST]` que nunca iba a
+convertirse en nada lo dice en vez de viajar callado hasta tu shell. Las
+comillas que escribas dentro de los argumentos se respetan, así que
+`-oA "scans/$[HOSTNAME] deep"` sigue funcionando cuando un valor lleva un
+espacio. Ver
+[Variables](../README.es.md#variables) para el lado de la terminal, donde el
+shell obliga a usar comillas simples; en la caja de aquí no hay nada que
+entrecomillar.
+
 Las direcciones se validan antes de llegar a una línea de comandos: `addr` es
 CDATA en `nmap.dtd`, así que lo que no sea una dirección IP se descarta en vez
-de escaparse.
+de escaparse. Un hostname recibe el mismo trato antes de llegar a
+`$[HOSTNAME]`.
 
 Los mismos comandos están en la terminal con `--rescan`, que lee `rescan.states`
 de la configuración y por tanto apunta también a `open|filtered` —el estado

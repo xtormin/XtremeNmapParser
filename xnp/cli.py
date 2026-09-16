@@ -96,7 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
                         metavar='ARGS',
                         help='Rescan with these nmap arguments instead of a profile. '
                              'Use --rescan-args="-sV --script vuln" so the leading '
-                             'dash is not read as a flag')
+                             'dash is not read as a flag. Accepts the $[IP], '
+                             '$[HOSTNAME], $[PORTS], $[TCP_PORTS] and $[UDP_PORTS] '
+                             'variables, each replaced per command')
     parser.add_argument('--include-hostless',
                         dest='include_hostless',
                         action="store_true",
@@ -251,6 +253,15 @@ def report_rescan(run, config, resolved) -> None:
     dropped = sorted({flag for item in built for flag in item.dropped})
     if dropped:
         logger.warning(i18n.t("warn.rescan_dropped", flags=" ".join(dropped)))
+
+    # A typo in a variable is left in the command rather than blanked out, so
+    # it is visible either way -- but saying which names exist saves a guess.
+    unknown = rescan.unknown_variables(nmap_args)
+    if unknown:
+        logger.warning(i18n.t(
+            "warn.rescan_unknown_vars",
+            names=" ".join(f"$[{name}]" for name in unknown),
+            known=", ".join(f"$[{name}]" for name in rescan.VARIABLES)))
 
     ui.rescan(built, label)
 

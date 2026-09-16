@@ -137,9 +137,18 @@ def test_no_report_has_no_services():
 
 def test_the_targets_carry_every_port_with_its_state(report):
     targets = stats.targets_for(report("multi_host"))
-    assert ("10.0.0.3", "tcp", "443", "open") in targets
-    assert ("10.0.0.3", "udp", "53", "open") in targets
-    assert ("10.0.0.20", "tcp", "5432", "open") in targets
+    assert ("10.0.0.3", "tcp", "443", "open", "") in targets
+    assert ("10.0.0.3", "udp", "53", "open", "") in targets
+    assert ("10.0.0.20", "tcp", "5432", "open", "db.lab.local") in targets
+
+
+def test_a_target_carries_the_resolved_hostname_for_the_rescan(report):
+    targets = stats.targets_for(report("multi_host"))
+    names = {target[0]: target[4] for target in targets}
+    # The name is what --rescan-args="-oA $[HOSTNAME]" will write; a host nmap
+    # did not resolve carries "" and the rescan falls back to its address.
+    assert names["10.0.0.20"] == "db.lab.local"
+    assert names["10.0.0.3"] == ""
 
 
 def test_a_host_with_no_address_contributes_no_targets(report):

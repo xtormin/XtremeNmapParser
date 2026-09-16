@@ -1,7 +1,8 @@
 """Turning a finished scan into the nmap command that scans only what it found.
 
 The module is pure, so almost everything here is built from plain tuples of
-``(address, protocol, port, state)`` rather than from a fixture file.
+``(address, protocol, port, state)`` -- with an optional fifth element, the
+hostname -- rather than from a fixture file.
 """
 
 import json
@@ -170,6 +171,133 @@ def test_open_filtered_is_included_when_the_config_asks_for_it():
     assert "-p U:161 " in one(targets, states=("open", "open|filtered"))
 
 
+# --- Variables --------------------------------------------------------------
+
+def test_a_group_variable_is_replaced_without_breaking_the_group():
+    command = one([("10.0.0.5", "tcp", 22, "open"), ("10.0.0.9", "tcp", 22, "open")],
+                  args="-sV -oN scan-$[PORTS].txt -Pn")
+    assert command == "nmap -sV -oN scan-22.txt -Pn -p 22 10.0.0.5 10.0.0.9"
+
+
+def test_the_tcp_and_udp_halves_have_a_variable_of_their_own():
+    command = one([("10.0.0.5", "tcp", 80, "open"), ("10.0.0.5", "udp", 53, "open")],
+                  args="-sV -oN t$[TCP_PORTS]-u$[UDP_PORTS].txt -Pn")
+    assert "-oN t80-u53.txt " in command
+
+
+def test_an_address_variable_splits_the_group_into_one_command_per_host():
+    # -oA with a shared name would have every command of the group overwrite
+    # the previous one's files, so the group stops being shared.
+    built = rescan.commands([("10.0.0.5", "tcp", 22, "open"),
+                             ("10.0.0.9", "tcp", 22, "open")],
+                            "-sV -oA out/$[IP] -Pn", ("open",))
+    assert [item.command for item in built] == [
+        "nmap -sV -oA out/10.0.0.5 -Pn -p 22 10.0.0.5",
+        "nmap -sV -oA out/10.0.0.9 -Pn -p 22 10.0.0.9",
+    ]
+
+
+def test_the_hostname_variable_uses_the_name_the_scan_resolved():
+    command = one([("10.0.0.5", "tcp", 22, "open", "web.lab.local")],
+                  args="-sV -oA out/$[HOSTNAME] -Pn")
+    assert "-oA out/web.lab.local " in command
+
+
+def test_a_host_with_no_name_falls_back_to_its_address():
+    built = rescan.commands([("10.0.0.5", "tcp", 22, "open", "web.lab.local"),
+                             ("10.0.0.9", "tcp", 22, "open")],
+                            "-oA $[HOSTNAME]", ("open",))
+    assert [item.command for item in built] == [
+        "nmap -oA web.lab.local -p 22 10.0.0.5",
+        "nmap -oA 10.0.0.9 -p 22 10.0.0.9",
+    ]
+
+
+def test_a_hostname_the_xml_made_up_never_reaches_the_command_line():
+    # What is left is a recognisable name and nothing a shell reads: the
+    # separators, the spaces and the slash are gone, not quoted.
+    command = one([("10.0.0.5", "tcp", 22, "open", "web 01; rm -rf /.lab")],
+                  args="-oA $[HOSTNAME]")
+    assert command == "nmap -oA web01rm-rf.lab -p 22 10.0.0.5"
+
+
+def test_a_name_made_only_of_dropped_characters_falls_back_to_the_address():
+    command = one([("10.0.0.5", "tcp", 22, "open", "$(!!)")], args="-oA $[HOSTNAME]")
+    assert command == "nmap -oA 10.0.0.5 -p 22 10.0.0.5"
+
+
+def test_one_address_resolved_two_ways_picks_the_same_name_every_run():
+    targets = [("10.0.0.5", "tcp", 22, "open", "web.lab.local"),
+               ("10.0.0.5", "tcp", 80, "open", "alias.lab.local")]
+    assert "-oA alias.lab.local " in one(targets, args="-oA $[HOSTNAME]")
+
+
+def test_an_unknown_variable_is_left_in_the_command_rather_than_blanked_out():
+    command = one([("10.0.0.5", "tcp", 22, "open")], args="-oA $[NOPE]")
+    assert "$[NOPE]" in command
+    assert rescan.unknown_variables("-oA $[NOPE] -oN $[IP]") == ("NOPE",)
+
+
+def test_a_variable_inside_a_flags_value_does_not_confuse_the_splitter():
+    # $[PORTS] expands to something that looks like a port spec; it must not
+    # be read back as one and dropped.
+    command = one([("10.0.0.5", "tcp", 22, "open")], args="-sV --script-args p=$[PORTS]")
+    assert "--script-args p=22" in command
+
+
+def test_a_group_built_without_names_still_answers_the_hostname_variable():
+    # RescanGroup defaults names to (), so a group built by hand -- in a test,
+    # or by code written before the variables -- must not raise on $[HOSTNAME].
+    group = rescan.RescanGroup(family="ipv4", tcp=(22,), udp=(), hosts=("10.0.0.5",))
+    assert rescan.build_command(group, "-oA $[HOSTNAME]")[0].startswith(
+        "nmap -oA 10.0.0.5 ")
+
+
+# --- Quoting ----------------------------------------------------------------
+
+def test_the_quotes_an_author_wrote_are_the_quotes_that_come_out():
+    # They may be load-bearing -- a path with a space in it needs them -- and
+    # only whoever wrote the profile knows whether it has one.
+    command = one([("10.0.0.5", "tcp", 22, "open")], args='-sV -oA "nmap/$[IP]"')
+    assert command == 'nmap -sV -oA "nmap/10.0.0.5" -p 22 10.0.0.5'
+
+
+def test_a_quoted_value_with_a_space_survives_the_substitution():
+    command = one([("10.0.0.5", "tcp", 22, "open", "web.lab")],
+                  args='-oA "scans/$[HOSTNAME] deep"')
+    assert command == 'nmap -oA "scans/web.lab deep" -p 22 10.0.0.5'
+
+
+def test_a_bare_token_is_left_bare_when_it_does_not_need_quoting():
+    command = one([("10.0.0.5", "tcp", 22, "open")], args="-sV -oA nmap/$[IP]")
+    assert command == "nmap -sV -oA nmap/10.0.0.5 -p 22 10.0.0.5"
+
+
+def test_a_quote_inside_a_token_keeps_the_token_whole():
+    command = one([("10.0.0.5", "tcp", 22, "open")],
+                  args='-sV --script="vuln and safe"')
+    assert '--script="vuln and safe"' in command
+
+
+def test_an_unbalanced_quote_reaches_the_command_as_typed():
+    # shlex.split would raise here; showing the line the author wrote is more
+    # use than failing the run over their typo.
+    command = one([("10.0.0.5", "tcp", 22, "open")], args='-oA "nmap/$[IP]')
+    assert command == 'nmap -oA "nmap/10.0.0.5 -p 22 10.0.0.5'
+    assert rescan.needs_root(command) is False
+
+
+def test_a_flag_someone_quoted_is_still_read_as_that_flag():
+    built = rescan.commands([("10.0.0.5", "udp", 161, "open")], '"-sS" -Pn', ("open",))
+    assert built[0].dropped == ("-sS",)
+
+
+def test_a_variable_free_profile_keeps_its_groups():
+    assert not rescan.uses_per_host_variable(SERVICE)
+    assert rescan.uses_per_host_variable("-oA $[IP]")
+    assert rescan.uses_per_host_variable("-oA $[HOSTNAME]")
+
+
 # --- The command line is a shell, and the XML is not ours -------------------
 
 @pytest.mark.parametrize("hostile", [
@@ -230,7 +358,7 @@ def test_the_family_is_only_reported_for_a_real_address(address, family):
 # button in a file that has no Python behind it.  Two implementations of the
 # same thing drift; this runs both over the same input and diffs the output.
 
-#: Every case is (nmap arguments, [(address, protocol, port)]).
+#: Every case is (nmap arguments, [(address, protocol, port[, hostname])]).
 SYNC_CASES = [
     ("-sV -sC --version-all -Pn", [("10.0.0.5", "tcp", 22), ("10.0.0.5", "tcp", 80),
                                    ("10.0.0.9", "tcp", 22), ("10.0.0.9", "tcp", 80)]),
@@ -247,6 +375,19 @@ SYNC_CASES = [
                  ("10.0.0.9", "tcp", 80)]),
     ("-sV -Pn", [("10.0.0.5", "tcp", 99999), ("10.0.0.5", "sctp", 80),
                  ("10.0.0.5", "tcp", 443)]),
+    # Variables: group-level, per-host, unknown, and a hostname the XML made up.
+    ("-sV -oN scan-$[PORTS].txt -Pn", [("10.0.0.5", "tcp", 22), ("10.0.0.9", "tcp", 22)]),
+    ("-sV -oA out/$[IP] -Pn", [("10.0.0.5", "tcp", 22), ("10.0.0.9", "tcp", 22)]),
+    ("-oA $[HOSTNAME]-t$[TCP_PORTS]-u$[UDP_PORTS]",
+     [("10.0.0.5", "tcp", 22, "web 01; rm -rf /.lab"), ("10.0.0.5", "udp", 53, "WEB.lab"),
+      ("10.0.0.9", "tcp", 22, "$(id)"), ("10.0.0.9", "udp", 53, "")]),
+    ("-sV -oA $[NOPE] -Pn", [("10.0.0.5", "tcp", 22)]),
+    # Quoting: written with quotes, written without, and left unbalanced.
+    ('-sV -oA "nmap/$[IP]" -Pn', [("10.0.0.5", "tcp", 22), ("10.0.0.9", "tcp", 22)]),
+    ('-oA "scans/$[HOSTNAME] deep"', [("10.0.0.5", "tcp", 22, "web.lab")]),
+    ('-sV --script="vuln and safe" -Pn', [("10.0.0.5", "tcp", 80)]),
+    ('-oA "nmap/$[IP]', [("10.0.0.5", "tcp", 22)]),
+    ('"-sS" -Pn', [("10.0.0.5", "udp", 161)]),
 ]
 
 HARNESS = """
@@ -255,10 +396,10 @@ var state = { rescanProfile: "", rescanArgs: "" };
 %s
 JSON.parse(require("fs").readFileSync(0, "utf8")).forEach(function (testCase) {
   var rows = testCase.rows.map(function (r) {
-    return { ip: r[0], protocol: r[1], num: r[2] };
+    return { ip: r[0], protocol: r[1], num: r[2], hostname: r[3] };
   });
-  signatureGroups(rows).forEach(function (group) {
-    console.log(nmapCommand(group, testCase.args));
+  commandsFor(rows, testCase.args).forEach(function (command) {
+    console.log(command);
   });
 });
 """
@@ -270,6 +411,24 @@ def javascript_block():
         encoding="utf-8")
     return source[source.index("  // --- Targeted rescan"):
                   source.index("  var TARGET_SHAPES = [")]
+
+
+def test_no_two_functions_in_the_report_share_a_name():
+    """The rescan block lives in the same scope as the rest of report.js.
+
+    A second ``function render()`` does not shadow the first, it replaces it,
+    and every call meant for the other one lands here instead -- which is a
+    report whose script dies on load, and which the parity test above cannot
+    see because it only runs this block.
+    """
+    import collections
+    import re
+
+    source = (Path(rescan.__file__).parent / "data" / "report" / "report.js").read_text(
+        encoding="utf-8")
+    names = re.findall(r"^  function (\w+)\(", source, re.MULTILINE)
+    repeated = [name for name, count in collections.Counter(names).items() if count > 1]
+    assert repeated == []
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
@@ -284,6 +443,6 @@ def test_the_report_builds_the_same_commands_this_module_does(tmp_path):
     expected = [command.command
                 for args, rows in SYNC_CASES
                 for command in rescan.commands(
-                    [(address, protocol, port, "open") for address, protocol, port in rows],
+                    [(row[0], row[1], row[2], "open") + tuple(row[3:]) for row in rows],
                     args, ("open",))]
     assert result.stdout.splitlines() == expected

@@ -87,6 +87,8 @@ MESSAGES = {
                              "({states}) to aim at",
         "warn.rescan_dropped": "--rescan: {flags} dropped -- the ports and scan "
                                "types are decided per group",
+        "warn.rescan_unknown_vars": "--rescan: {names} left as typed -- known "
+                                    "variables are {known}",
 
         # The update check
         "update.available": ("XNP {latest} is available (you have {current}) "
@@ -156,6 +158,8 @@ MESSAGES = {
                              "({states}) a lo que apuntar",
         "warn.rescan_dropped": "--rescan: se descarta {flags}; los puertos y los "
                                "tipos de escaneo se deciden por grupo",
+        "warn.rescan_unknown_vars": "--rescan: {names} se deja tal cual; las "
+                                    "variables que existen son {known}",
 
         "update.available": ("XNP {latest} está disponible (tienes {current}) "
                              "- actualiza con: xnp --update"),

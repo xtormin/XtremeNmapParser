@@ -18,6 +18,24 @@ Released versions of [XNP](https://github.com/xtormin/XtremeNmapParser).
   a TCP-only group is left to nmap's own default unless the profile asked for
   one. `--rescan-args="…"` replaces the arguments outright. The commands go to
   stderr, so stdout stays the clean list of generated paths.
+- **The rescan arguments take `$[...]` variables**, so a profile can name its
+  own output file instead of every command overwriting the same one:
+  `--rescan-args='-sV -oA scans/$[HOSTNAME] -Pn'` (single quotes: `$[...]` is
+  bash's deprecated arithmetic expansion). `$[IP]`, `$[HOSTNAME]` (the resolved
+  name, or the address when the scan found none), `$[PORTS]`, `$[TCP_PORTS]`
+  and `$[UDP_PORTS]` are replaced per command. `$[IP]` and `$[HOSTNAME]` name a
+  single host, so using one splits its group into one command per host — a
+  value that differs per host cannot be written once into a shared command. The
+  brackets tell an XNP variable from an environment variable, a name that is
+  not one of these is left in the command rather than blanked out, and a
+  hostname is sanitised the way an address is: what a shell would read is
+  dropped, not escaped. The report's `custom` box accepts the same variables,
+  and names the ones you got wrong under the box.
+- **Quotes written into the rescan arguments are kept.** `-oA "nmap/$[IP] deep"`
+  comes out quoted the way it went in, because the quotes may be load-bearing
+  and only their author knows whether the path has a space in it. A token
+  written bare is still quoted only when it needs to be, and an unbalanced
+  quote reaches the command as typed instead of failing the run.
 - The profiles live in `config.yaml` under a new `rescan:` block — `service`,
   `vuln`, `recheck` and `full` ship with it, and one added in
   `config/config.yaml` joins them rather than replacing the block. `states`

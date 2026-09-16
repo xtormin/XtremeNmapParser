@@ -103,7 +103,7 @@ XLSX es una tabla de Excel de verdad, con los filtros ya puestos.
 | `--open` | Exporta solo los puertos cuyo estado es `open` |
 | `--show` | Abre el informe HTML generado en el navegador al terminar |
 | `--rescan` | Imprime los comandos de nmap que reescanean solo lo que esta ejecución encontró. Acepta un nombre de perfil de `config.yaml`; sin nombre, el que esté por defecto |
-| `--rescan-args` | Reescanea con estos argumentos de nmap en vez de con un perfil: `--rescan-args="-sV --script vuln"` |
+| `--rescan-args` | Reescanea con estos argumentos de nmap en vez de con un perfil: `--rescan-args="-sV --script vuln"`. Admite [variables](#variables) `$[...]` |
 | `--include-hostless` | Emite también una fila para los hosts sin puertos. Desactivado por defecto |
 | `--no-validate` | Salta la validación DTD — para salida compatible con nmap de otros escáneres |
 | `--lang` | `en` o `es` para el terminal y el idioma inicial del informe |
@@ -166,6 +166,61 @@ xnp -d examples/ --rescan vuln
 ```bash
 xnp -d examples/ --rescan-args="-sV --script vuln -Pn"
 ```
+
+### Variables
+
+Los argumentos admiten variables `$[...]`, que se sustituyen en cada comando: es
+lo que hace que cada comando tenga su propio fichero de salida en vez de
+sobrescribir el del anterior:
+
+```bash
+xnp -d examples/ --rescan-args='-sV -oA scans/$[HOSTNAME] -Pn'
+```
+
+```
+nmap -sV -oA scans/db.lab.local -Pn -p 5432 10.0.0.20
+nmap -sV -oA scans/10.0.0.3 -Pn -sS -sU -p T:443,U:53 10.0.0.3
+```
+
+| Variable | Valor |
+| --- | --- |
+| `$[IP]` | La dirección del host |
+| `$[HOSTNAME]` | El nombre que resolvió el escaneo, o la dirección si no resolvió ninguno |
+| `$[PORTS]` | El valor de `-p` del comando, con prefijos incluidos: `T:443,U:53` |
+| `$[TCP_PORTS]` · `$[UDP_PORTS]` | Cada mitad por separado, o vacío |
+
+`$[IP]` y `$[HOSTNAME]` nombran a **un solo host**, así que usar una divide su
+grupo en un comando por host: un valor que cambia de un host a otro no se puede
+escribir una sola vez en un comando que comparten. Las otras tres valen lo mismo
+para todo el grupo y no tocan la agrupación.
+
+Ojo a las comillas **simples** alrededor del argumento entero: `$[...]` es la
+expansión aritmética heredada de bash, así que `--rescan-args="… $[IP]"`
+llegaría a XNP ya destrozado por tu propio shell. Dentro de `config.yaml` no hay
+shell y no hay nada que entrecomillar.
+
+Las comillas **de dentro** de los argumentos se respetan tal y como las
+escribiste, porque puede que hagan falta y solo tú sabes si la ruta lleva un
+espacio:
+
+```bash
+xnp -d examples/ --rescan-args='-oA "nmap/$[HOSTNAME] deep"'
+```
+
+```
+nmap -oA "nmap/db.lab.local deep" -p 5432 10.0.0.20
+```
+
+Un token escrito sin comillas sale sin comillas si no las necesita, y con ellas
+si le hacen falta.
+
+Los corchetes son lo que distingue una variable de XNP de una variable de
+entorno que también quieras en la línea. Un nombre que no sea de estos se queda
+en el comando en vez de vaciarse, así que una errata se ve en lugar de borrar
+media opción. El hostname recibe el mismo trato que una dirección: viene del
+XML, así que lo que un shell leería se descarta, no se escapa. La caja
+`personalizado` del informe admite las mismas variables, y ahí no hay que
+entrecomillar nada.
 
 La lista de puertos, los tipos de escaneo y `-6` se deciden por grupo, así que
 `-p`/`-F`/`--top-ports`/`-sn`/`-6` en un perfil se descartan con un aviso. Un

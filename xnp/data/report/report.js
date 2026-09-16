@@ -119,6 +119,9 @@
       "rescan.copyAll": "Copiar {n} comandos nmap",
       "rescan.copyOne": "Copiar 1 comando nmap",
       "rescan.copyNone": "Nada abierto que reescanear",
+      "rescan.vars": "Variables: $[IP] $[HOSTNAME] $[PORTS] $[TCP_PORTS] $[UDP_PORTS] "
+        + "— $[IP] y $[HOSTNAME] generan un comando por host",
+      "rescan.unknownVars": "{names} se deja tal cual: las variables son {known}",
       "group.service": "Servicio", "group.product": "Producto", "group.num": "Puerto",
       "group.ip": "Host", "group.osFamily": "Sistema operativo",
       "table.hint": "▾ en cada columna para filtrar · clic en una fila abre el detalle · ↑ ↓ recorre · Esc cierra",
@@ -209,6 +212,9 @@
       "rescan.copyAll": "Copy {n} nmap commands",
       "rescan.copyOne": "Copy 1 nmap command",
       "rescan.copyNone": "Nothing open to rescan",
+      "rescan.vars": "Variables: $[IP] $[HOSTNAME] $[PORTS] $[TCP_PORTS] $[UDP_PORTS] "
+        + "— $[IP] and $[HOSTNAME] give one command per host",
+      "rescan.unknownVars": "{names} left as typed: the variables are {known}",
       "group.service": "Service", "group.product": "Product", "group.num": "Port",
       "group.ip": "Host", "group.osFamily": "Operating system",
       "table.hint": "▾ on any column to filter · click a row for its detail · ↑ ↓ to walk · Esc to close",
@@ -1066,6 +1072,11 @@
 
   var CUSTOM_PROFILE = "__custom__";
   var PORT_SPEC_FLAGS = ["-p", "--top-ports", "--exclude-ports", "--exclude-port"];
+  //: $[NAME] in the arguments: ours to replace, bracketed to tell it from an
+  //: environment variable.  Nothing here reaches a shell unresolved, so the
+  //: box needs no quoting rules.  Mirrors rescan.py.
+  var VARIABLE_RE = /\$\[([A-Za-z_][A-Za-z0-9_]*)\]/g;
+  var PER_HOST_VARIABLES = ["IP", "HOSTNAME"];
   var TCP_SCAN_TYPES = ["-sS", "-sT", "-sA", "-sW", "-sM", "-sN", "-sF", "-sX"];
   var INCOMPATIBLE_SCANS = ["-sn", "-sL", "-sP", "-sO", "-sY", "-sZ"];
 
@@ -1084,6 +1095,15 @@
     if (value.length <= 45 && value.indexOf(":") !== -1 &&
         /^[0-9A-Fa-f:]*:[0-9A-Fa-f:]*(\.\d{1,3}){0,3}$/.test(value)) return "ipv6";
     return "";
+  }
+
+  //: A hostname reaches a shell line and a file name and comes from the XML:
+  //: what is not one of these characters is dropped, not escaped.
+  //: Mirrors rescan.safe_hostname().
+  function safeHostname(name) {
+    var cleaned = String(name === null || name === undefined ? "" : name)
+      .replace(/[^A-Za-z0-9._-]/g, "").replace(/^[.-]+/, "").replace(/[.-]+$/, "");
+    return cleaned.slice(0, 253);
   }
 
   function addressKey(address) {
@@ -1106,9 +1126,15 @@
       if (!(port > 0 && port < 65536)) return;
       var key = family + "|" + row.ip;
       if (!perHost.has(key)) {
-        perHost.set(key, { family: family, ip: row.ip, tcp: new Set(), udp: new Set() });
+        perHost.set(key, { family: family, ip: row.ip, name: "",
+                           tcp: new Set(), udp: new Set() });
       }
-      perHost.get(key)[protocol].add(port);
+      var host = perHost.get(key);
+      host[protocol].add(port);
+      // Rows of one address can carry different names; the smallest wins, so
+      // the same selection always produces the same command.
+      var name = safeHostname(row.hostname);
+      if (name && (!host.name || name < host.name)) host.name = name;
     });
 
     function sortedPorts(set) {
@@ -1120,17 +1146,22 @@
       var tcp = sortedPorts(host.tcp), udp = sortedPorts(host.udp);
       var key = host.family + "|" + tcp.join(",") + "|" + udp.join(",");
       if (!signatures.has(key)) {
-        signatures.set(key, { family: host.family, tcp: tcp, udp: udp, hosts: [] });
+        signatures.set(key, { family: host.family, tcp: tcp, udp: udp,
+                              hosts: [], names: [] });
       }
-      signatures.get(key).hosts.push(host.ip);
+      signatures.get(key).hosts.push(host);
     });
 
     var groups = Array.from(signatures.values());
     groups.forEach(function (group) {
+      // Sorted as host objects, then split into the two parallel arrays, so
+      // names can never end up against the wrong address.
       group.hosts.sort(function (a, b) {
-        var ka = addressKey(a), kb = addressKey(b);
+        var ka = addressKey(a.ip), kb = addressKey(b.ip);
         return ka < kb ? -1 : ka > kb ? 1 : 0;
       });
+      group.names = group.hosts.map(function (host) { return host.name; });
+      group.hosts = group.hosts.map(function (host) { return host.ip; });
     });
     groups.sort(function (a, b) {
       return b.hosts.length - a.hosts.length ||
@@ -1140,13 +1171,26 @@
     return groups;
   }
 
-  /** Tokenise the way a shell would -- enough for the flags a profile carries. */
+  /** Tokenise like a shell, keeping the text as it was written.
+   *
+   * Each token comes back as { value, raw }: the value is what the flags are
+   * matched against, the raw is what the author typed and what gets printed
+   * back, so quotes they wrote survive.  Mirrors rescan.split_args().
+   */
+  //: The bare part is one character, not a run of them: (?:[^\s"']+)+ is a
+  //: nested quantifier and backtracks exponentially, which here means a blown
+  //: stack and a report that never finishes starting.
+  var TOKEN_RE = /(?:"[^"]*"|'[^']*'|[^\s"']|["'])+/g;
+
   function splitArgs(text) {
-    var tokens = String(text || "").match(/'[^']*'|"[^"]*"|\S+/g) || [];
-    return tokens.map(function (token) {
-      var quote = token.charAt(0);
-      return (quote === "'" || quote === '"') && token.slice(-1) === quote
-        ? token.slice(1, -1) : token;
+    var raws = String(text || "").match(TOKEN_RE) || [];
+    return raws.map(function (raw) {
+      return {
+        raw: raw,
+        value: raw.replace(/"([^"]*)"|'([^']*)'/g, function (part, double, single) {
+          return double !== undefined ? double : single;
+        })
+      };
     });
   }
 
@@ -1172,22 +1216,101 @@
   function splitProfile(args) {
     var kept = [], tcpType = "", skipValue = false;
     splitArgs(args).forEach(function (token) {
+      var value = token.value;
       if (skipValue) { skipValue = false; return; }
-      if (PORT_SPEC_FLAGS.indexOf(token) !== -1) { skipValue = true; return; }
-      if (token.indexOf("-p") === 0 && token.indexOf("--") !== 0 && token.length > 2) return;
-      if (token === "-F" || token === "-6") return;
-      if (INCOMPATIBLE_SCANS.indexOf(token) !== -1) return;
-      if (TCP_SCAN_TYPES.indexOf(token) !== -1) { if (!tcpType) tcpType = token; return; }
-      if (token === "-sU") return;
+      if (PORT_SPEC_FLAGS.indexOf(value) !== -1) { skipValue = true; return; }
+      if (value.indexOf("-p") === 0 && value.indexOf("--") !== 0 && value.length > 2) return;
+      if (value === "-F" || value === "-6") return;
+      if (INCOMPATIBLE_SCANS.indexOf(value) !== -1) return;
+      if (TCP_SCAN_TYPES.indexOf(value) !== -1) { if (!tcpType) tcpType = value; return; }
+      if (value === "-sU") return;
       kept.push(token);
     });
     return { kept: kept, tcpType: tcpType };
   }
 
+  /** The host's name, falling back to its address.  Mirrors group.name_of(). */
+  function nameOf(group, index) {
+    if (!group.hosts.length) return "";
+    var names = group.names || [];
+    return names[index || 0] || group.hosts[index || 0];
+  }
+
+  /** What each variable stands for in this group.  Mirrors rescan._values(). */
+  function variableValues(group) {
+    return {
+      IP: group.hosts.length ? group.hosts[0] : "",
+      HOSTNAME: nameOf(group, 0),
+      PORTS: portSpec(group),
+      TCP_PORTS: group.tcp.join(","),
+      UDP_PORTS: group.udp.join(",")
+    };
+  }
+
+  /** Replace the $[...] of one token; an unknown name stays literal. */
+  function substitute(token, group) {
+    var values = variableValues(group);
+    return String(token).replace(VARIABLE_RE, function (match, name) {
+      return Object.prototype.hasOwnProperty.call(values, name) ? values[name] : match;
+    });
+  }
+
+  //: Every variable an argument string may use.  Mirrors rescan.VARIABLES.
+  var VARIABLES = PER_HOST_VARIABLES.concat(["PORTS", "TCP_PORTS", "UDP_PORTS"]);
+
+  /** The $[...] names that are not ours -- left literal, named in the hint. */
+  function unknownVariables(args) {
+    var names = String(args || "").match(VARIABLE_RE) || [];
+    var unknown = [];
+    names.forEach(function (token) {
+      var name = token.slice(2, -1);
+      if (VARIABLES.indexOf(name) === -1 && unknown.indexOf(name) === -1) {
+        unknown.push(name);
+      }
+    });
+    return unknown;
+  }
+
+  function usesPerHostVariable(args) {
+    var names = String(args || "").match(VARIABLE_RE) || [];
+    return names.some(function (token) {
+      return PER_HOST_VARIABLES.indexOf(token.slice(2, -1)) !== -1;
+    });
+  }
+
+  /** One group per host when a variable names a single host.  Mirrors expand(). */
+  function expandGroups(groups, args) {
+    if (!usesPerHostVariable(args)) return groups;
+    var expanded = [];
+    groups.forEach(function (group) {
+      group.hosts.forEach(function (host, index) {
+        expanded.push({ family: group.family, tcp: group.tcp, udp: group.udp,
+                        hosts: [host], names: [nameOf(group, index)] });
+      });
+    });
+    return expanded;
+  }
+
+  /** One kept token, variables replaced, quoted as its author quoted it.
+   *
+   * Quotes someone wrote are kept: they may be load-bearing, and only the
+   * person writing them knows whether the path has a space in it.  A bare
+   * token is quoted only if it needs it.  Mirrors rescan.render_token().
+   */
+  function renderToken(token, group) {
+    if (token.raw.indexOf('"') !== -1 || token.raw.indexOf("'") !== -1) {
+      return substitute(token.raw, group);
+    }
+    return quoteArg(substitute(token.value, group));
+  }
+
   /** The nmap line for one signature group.  Mirrors rescan.build_command(). */
   function nmapCommand(group, args) {
     var profile = splitProfile(args);
-    var kept = profile.kept, tcpType = profile.tcpType;
+    var tcpType = profile.tcpType;
+    // After the split, so a profile's flags are recognised as themselves: what
+    // a variable expands to is a value, never a flag the generator reacts to.
+    var kept = profile.kept.map(function (token) { return renderToken(token, group); });
 
     var parts = ["nmap"].concat(kept);
     if (group.family === "ipv6") parts.push("-6");
@@ -1196,7 +1319,16 @@
     if (group.tcp.length && (group.udp.length || tcpType)) parts.push(tcpType || "-sS");
     if (group.udp.length) parts.push("-sU");
     parts.push("-p", portSpec(group));
-    return parts.map(quoteArg).join(" ") + " " + group.hosts.join(" ");
+    // The kept tokens are already quoted the way their author wrote them, and
+    // what this function adds -- flags and a port spec -- never needs quoting.
+    return parts.join(" ") + " " + group.hosts.join(" ");
+  }
+
+  /** Every command for a set of rows: group, expand, build.  Mirrors commands(). */
+  function commandsFor(rows, args) {
+    return expandGroups(signatureGroups(rows), args).map(function (group) {
+      return nmapCommand(group, args);
+    });
   }
 
   /** The arguments in force: a profile's, or what was typed for "custom". */
@@ -1219,10 +1351,7 @@
     // comment lines: they would make that count a lie, and the whole list goes
     // to the clipboard to be pasted straight into a shell.
     { id: "nmap", build: function (rows) {
-        var args = rescanArgs();
-        return signatureGroups(rows).map(function (group) {
-          return nmapCommand(group, args);
-        }); } }
+        return commandsFor(rows, rescanArgs()); } }
   ];
 
   // --- The rescan bar -------------------------------------------------------
@@ -1238,10 +1367,7 @@
 
   /** The commands for the current selection: what the copy button will give. */
   function rescanCommands() {
-    var args = rescanArgs();
-    return signatureGroups(selected().filter(isOpen)).map(function (group) {
-      return nmapCommand(group, args);
-    });
+    return commandsFor(selected().filter(isOpen), rescanArgs());
   }
 
   /** Fill every profile selector from the payload, plus a free-text entry. */
@@ -1266,8 +1392,19 @@
     // What survives, not what was typed: the ports, -6 and the scan types are
     // the group's to decide, and promising them here would be a lie.
     var profile = splitProfile(rescanArgs());
-    var kept = profile.kept.concat(profile.tcpType ? [profile.tcpType] : []);
-    var hint = kept.length ? t("rescan.hint", { args: kept.map(quoteArg).join(" ") }) : "";
+    var kept = profile.kept.map(function (token) { return token.raw; })
+      .concat(profile.tcpType ? [profile.tcpType] : []);
+    var hint = kept.length ? t("rescan.hint", { args: kept.join(" ") }) : "";
+    // A name that is not a variable is left in the command, so the line that
+    // explains the command is where it gets named: there is no other way to
+    // find out that $[HOST] was never going to become anything.
+    var unknown = unknownVariables(rescanArgs());
+    if (unknown.length) {
+      hint = t("rescan.unknownVars", {
+        names: unknown.map(function (name) { return "$[" + name + "]"; }).join(" "),
+        known: VARIABLES.map(function (name) { return "$[" + name + "]"; }).join(" ")
+      });
+    }
     var count = rescanCommands().length;
     var label = count === 0 ? t("rescan.copyNone")
       : count === 1 ? t("rescan.copyOne") : t("rescan.copyAll", { n: count });
@@ -1281,6 +1418,9 @@
     });
     rescanBars(".rescan-args").forEach(function (input) {
       input.hidden = !custom;
+      // The variables are only discoverable if something names them, and the
+      // box is where they would be typed.
+      input.title = t("rescan.vars");
       // Never write into the box someone is typing in: a render landing
       // mid-word would take the word back, and mid-composition it would eat
       // an IME candidate.  The other copy still gets the value.

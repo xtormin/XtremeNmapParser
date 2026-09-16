@@ -63,9 +63,24 @@ Three things the generator decides for you, whatever the profile says:
 - **`-6`.** Added for an IPv6 group and dropped for an IPv4 one. IPv4 and IPv6
   hosts never share a command.
 
+The arguments may carry `$[...]` variables — `$[IP]`, `$[HOSTNAME]`, `$[PORTS]`,
+`$[TCP_PORTS]`, `$[UDP_PORTS]` — replaced in every command, which is how
+`-oA scans/$[HOSTNAME]` becomes an output file per target instead of one every
+command overwrites. `$[IP]` and `$[HOSTNAME]` name a single host, so using one
+splits its group into one command per host: a value that differs per host
+cannot be written once into a command they share. `$[HOSTNAME]` falls back to
+the address for a host the scan did not resolve, and a name that is not one of
+these is left in the command rather than blanked out — the line under the box
+says which, so a `$[HOST]` that was never going to become anything says so
+instead of quietly travelling to your shell. Quotes you write inside the
+arguments are kept, so `-oA "scans/$[HOSTNAME] deep"` keeps working when a
+value has a space in it. See
+[Variables](../README.md#variables) for the terminal side, where the shell
+means they have to be single-quoted; in the box here there is nothing to quote.
+
 Addresses are validated before they reach a command line: `addr` is CDATA in
 `nmap.dtd`, so anything that is not an IP address is dropped rather than
-escaped.
+escaped. A hostname gets the same treatment before it reaches `$[HOSTNAME]`.
 
 The same commands are available in the terminal with `--rescan`, which reads
 `rescan.states` from the configuration and so also aims at `open|filtered` —

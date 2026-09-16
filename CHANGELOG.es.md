@@ -20,6 +20,26 @@ Versiones publicadas de [XNP](https://github.com/xtormin/XtremeNmapParser).
   perfil pidiera otro. `--rescan-args="…"` sustituye los argumentos por
   completo. Los comandos van a stderr, así que stdout sigue siendo la lista
   limpia de rutas generadas.
+- **Los argumentos del reescaneo admiten variables `$[...]`**, así que un perfil
+  puede nombrar su propio fichero de salida en vez de que todos los comandos
+  sobrescriban el mismo: `--rescan-args='-sV -oA scans/$[HOSTNAME] -Pn'` (con
+  comillas simples: `$[...]` es la expansión aritmética heredada de bash).
+  `$[IP]`, `$[HOSTNAME]` (el nombre resuelto, o la dirección si el escaneo no
+  resolvió ninguno), `$[PORTS]`, `$[TCP_PORTS]` y `$[UDP_PORTS]` se sustituyen
+  en cada comando. `$[IP]` y `$[HOSTNAME]` nombran a un host concreto, así que
+  usar uno divide su grupo en un comando por host: un valor que cambia con el
+  host no se puede escribir una sola vez en un comando compartido. Los
+  corchetes distinguen una variable de XNP de una de entorno, un nombre que no
+  sea de esos se queda en el comando en lugar de vaciarse, y un hostname se
+  sanea como una dirección: lo que un shell leería se descarta, no se escapa.
+  La caja `personalizado` del informe acepta las mismas variables, y nombra
+  debajo las que hayas escrito mal.
+- **Las comillas que escribas en los argumentos del reescaneo se respetan.**
+  `-oA "nmap/$[IP] deep"` sale entrecomillado tal y como entró, porque puede que
+  las comillas hagan falta y solo quien las escribió sabe si la ruta lleva un
+  espacio. Un token escrito sin ellas se sigue entrecomillando solo cuando lo
+  necesita, y unas comillas sin cerrar llegan al comando tal cual en vez de
+  tumbar la ejecución.
 - Los perfiles viven en `config.yaml`, en un bloque `rescan:` nuevo: `service`,
   `vuln`, `recheck` y `full` vienen de serie, y uno añadido en
   `config/config.yaml` se suma a ellos en lugar de reemplazar el bloque.

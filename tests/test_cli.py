@@ -1,5 +1,7 @@
 """Argument parsing and the process-level entry point."""
 
+import logging
+
 import pytest
 
 from xnp import __version__
@@ -411,6 +413,37 @@ def test_an_unknown_rescan_profile_names_the_ones_that_exist():
 
     with pytest.raises(XnpError, match="Available: service"):
         resolve_rescan(parse_args(["-f", __file__, "--rescan", "nope"]), load_config())
+
+
+def test_a_variable_that_does_not_exist_is_reported_with_the_ones_that_do(capsys):
+    from xnp.cli import report_rescan
+    from xnp.config import load_config
+    from xnp.stats import RunStats
+
+    run = RunStats()
+    run.targets = {("10.0.0.5", "tcp", 22, "open", "web.lab")}
+    # A handler of our own rather than caplog: the warnings go through the
+    # module's logger, and what its handlers do with them is ui's business.
+    # The level is put back because this file silences the logger for every
+    # other test, which is exactly what this one needs to undo.
+    records = []
+    handler = logging.Handler()
+    handler.emit = lambda record: records.append(record.getMessage())
+    logger = logging.getLogger("xnp")
+    level = logger.level
+    logger.setLevel(logging.WARNING)
+    logger.addHandler(handler)
+    try:
+        report_rescan(run, load_config(), ("custom", "-oA $[TYPO] -oN $[HOSTNAME]"))
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(level)
+
+    warnings, err = records, capsys.readouterr().err
+    assert any("$[TYPO]" in message for message in warnings)
+    # ...and the message names the ones that do exist
+    assert any("$[PORTS]" in message for message in warnings)
+    assert "-oN web.lab" in err                   # the one that did resolve
 
 
 def test_the_rescan_profile_shows_in_the_arguments_panel():

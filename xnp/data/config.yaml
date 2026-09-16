@@ -52,6 +52,12 @@ rescan:
   # Only what to *do* with the ports goes here.  The port list, the scan types
   # and -6 are decided per group of hosts, so -p/-F/--top-ports/-sn/-6 in these
   # arguments are dropped (with a warning) rather than fighting the generator.
+  #
+  # The arguments may use $[IP], $[HOSTNAME], $[PORTS], $[TCP_PORTS] and
+  # $[UDP_PORTS], each replaced per command -- "-oA scans/$[HOSTNAME]" gives
+  # every target its own output file.  $[IP] and $[HOSTNAME] name a single
+  # host, so a profile using one produces a command per host instead of one per
+  # group of hosts with the same open ports.
   profiles:
     service:
       args: "-sV -sC --version-all -Pn"

@@ -57,6 +57,20 @@ def _address(host) -> Optional[str]:
     return addresses.get("ipv4") or addresses.get("ipv6")
 
 
+def _hostname(host) -> str:
+    """The host's resolved name, or ``""``.
+
+    Mirrors :meth:`xnp.parser.NmapParser._host_name`, last entry included: nmap
+    lists a PTR after the user-supplied name, and the PTR is the one worth
+    scanning back.
+    """
+    name = ""
+    for group in host.hostnames:
+        for hostname in group.hostnames:
+            name = hostname.name or name
+    return name or ""
+
+
 def _is_open(port) -> bool:
     return bool(port.state) and port.state[0].state == OPEN
 
@@ -105,7 +119,10 @@ def services_for(report) -> Counter:
 
 
 def targets_for(report) -> frozenset:
-    """Every port with a state, as ``(address, protocol, port, state)``.
+    """Every port with a state, as ``(address, protocol, port, state, hostname)``.
+
+    The hostname rides along because ``--rescan`` arguments may ask for it with
+    ``$[HOSTNAME]``; :mod:`xnp.rescan` is what decides whether it is usable.
 
     Filtering by state is left to :mod:`xnp.rescan` and its configuration, so
     that ``rescan.states`` can mean anything without this function having an
@@ -120,10 +137,12 @@ def targets_for(report) -> frozenset:
         address = _address(host)
         if not address:
             continue
+        hostname = _hostname(host)
         for port in host.ports:
             if not port.portid or not port.state:
                 continue
-            targets.add((address, port.protocol, port.portid, port.state[0].state))
+            targets.add((address, port.protocol, port.portid, port.state[0].state,
+                         hostname))
     return frozenset(targets)
 
 
