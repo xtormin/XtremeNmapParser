@@ -1720,9 +1720,9 @@
     { key: "product", cls: "trunc" },
     { key: "version", cls: "mono trunc" },
     { key: "extrainfo", cls: "trunc" },
+    { key: "os", cls: "trunc" },
     { key: "interest" },
-    { key: "tags", cls: "tags" },
-    { key: "os", cls: "trunc" }
+    { key: "tags", cls: "tags" }
   ];
 
   function columnLabel(key) { return t("col." + key); }
