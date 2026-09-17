@@ -300,7 +300,9 @@ orden de precedencia.
 - **Por stdout salen las rutas generadas y nada más**, una por línea. El banner,
   la barra de progreso, los avisos y el resumen van por stderr, así que
   `xnp -d nmap/ -oF csv > escritos.txt` te deja una lista utilizable. En un
-  script, `--quiet`.
+  script, `--quiet`. En el terminal, donde nadie lee esa lista y la tabla de
+  *Ficheros generados* ya ha nombrado cada fichero con su formato y su tamaño,
+  las rutas no se imprimen por segunda vez.
 - **Códigos de salida:** `0` todo bien · `1` error · `2` XML inválido o que no
   es de nmap · `3` sin ficheros de entrada.
 - **¿Vienes de una versión antigua?** En la v1.2.0 cambian dos cosas: `-d`

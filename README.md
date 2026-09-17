@@ -290,7 +290,9 @@ precedence.
 - **stdout carries the generated paths and nothing else** — one bare path per
   line. The banner, progress bar, warnings and summary all go to stderr, so
   `xnp -d nmap/ -oF csv > written.txt` leaves you a usable list. `--quiet` is
-  the shape you want in a script.
+  the shape you want in a script. On a terminal, where nothing is reading that
+  list and the *Output files* table has already named every file with its
+  format and its size, the bare paths are not printed a second time.
 - **Exit codes:** `0` success · `1` error · `2` invalid or non-nmap XML ·
   `3` no input files found.
 - **Coming from an older version?** Two things changed in v1.2.0: `-d` now

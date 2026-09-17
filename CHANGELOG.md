@@ -82,6 +82,12 @@ Released versions of [XNP](https://github.com/xtormin/XtremeNmapParser).
   one — and these commands are meant to be pasted into a shell. Anything that is
   not an IP address is dropped rather than escaped, on both the Python and the
   JavaScript side.
+- **The generated paths are no longer printed twice on a terminal.** The
+  *Output files* table names every file with its format and its size, and the
+  bare list underneath it said the same thing again with less of it. That list
+  is for a pipe or a redirect, so it is now printed only when stdout is one —
+  or when `--quiet` has taken the table away. `xnp -d nmap/ -oF csv > written.txt`
+  is unchanged.
 - **An NSE table nested inside another no longer brings the run down.** The
   parser's recursive step looked for itself where it was not, so any `<script>`
   carrying a `<table>` inside another one — the ordinary output of `ssl-cert`,

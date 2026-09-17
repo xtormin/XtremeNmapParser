@@ -16,7 +16,10 @@ Stream policy, and why:
   lines, every log record, the summary.
 * **stdout carries the deliverables only** -- one bare, unstyled path per
   generated file, so ``xnp -d nmap/ > written.txt`` is a useful list instead of
-  a wall of ASCII art.
+  a wall of ASCII art.  The one exception is the case where that list has no
+  reader: when stdout and stderr are the same terminal, the table in
+  :func:`output_files` has already named every path and the bare list below it
+  would only be the same thing twice.
 
 The rescan block is the one thing ``--quiet`` does not silence: it was asked
 for by name with a flag, so suppressing it would make the flag do nothing.  It
@@ -335,6 +338,13 @@ def output_files(written) -> None:
     Two audiences, two streams: a readable table on stderr for the person, and
     the bare paths on stdout for whatever they piped this into.  The paths are
     emitted even under ``--quiet`` -- they are the deliverable.
+
+    When both streams are the same terminal, those two audiences are one: the
+    table already names every path, with its format and its size, and the bare
+    list under it is the same information again with less of it.  Nobody is
+    reading stdout in that case, so the list is dropped -- and only there.  The
+    moment stdout is a pipe or a file, or ``--quiet`` has taken the table away,
+    the contract is back in force and the paths are printed.
     """
     if not written:
         return
@@ -348,6 +358,9 @@ def output_files(written) -> None:
         for item in written:
             table.add_row(item.fmt, Text(item.path, style="xnp.path"), decimal(item.size))
         console().print(table)
+
+        if out().is_terminal and console().is_terminal:
+            return
 
     for item in written:
         # soft_wrap so a long path is never wrapped, folded or cropped: that is

