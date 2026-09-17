@@ -273,6 +273,19 @@ def test_a_script_without_structured_output_has_no_tables(xml):
     assert NmapXMLReport(xml("with_scripts")).hosts[0].ports[0].script[0].tables == []
 
 
+def test_nested_script_tables_are_parsed(xml):
+    """Regression: the recursive step looked up ``self.Table`` from inside Table."""
+    ssl_cert = NmapXMLReport(xml("with_scripts")).hosts[0].ports[0].script[1]
+    extensions = ssl_cert.tables[1]
+    assert extensions.key == "extensions"
+    assert extensions.table_elements == []
+    nested = extensions.nested_tables[0]
+    assert [(e.key, e.content) for e in nested.table_elements] == [
+        ("name", "X509v3 Subject Alternative Name"),
+        ("value", "DNS:tls.lab.local"),
+    ]
+
+
 def test_an_unreadable_dtd_raises(monkeypatch, xml):
     monkeypatch.setattr(NmapXMLReport, "DTD_PATH", "/nonexistent/nmap.dtd")
     with pytest.raises(XnpError, match="Could not read the nmap DTD"):

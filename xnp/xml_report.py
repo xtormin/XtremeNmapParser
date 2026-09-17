@@ -258,7 +258,7 @@ class NmapXMLReport:
         def __init__(self, element):
             self.key = element.get('key')
             self.table_elements = [self.Elem(elem) for elem in element.findall('elem')]
-            self.nested_tables = [self.Table(table) for table in element.findall('table')]
+            self.nested_tables = [NmapXMLReport.Table(table) for table in element.findall('table')]
 
         class Elem(_XmlNode):
             def __init__(self, element):

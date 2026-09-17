@@ -13,7 +13,7 @@
 <state state="open" reason="syn-ack" reason_ttl="64"/>
 <service name="https" product="nginx" version="1.24.0" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.24.0</cpe></service>
 <script id="http-title" output="Welcome"/>
-<script id="ssl-cert" output="Subject: commonName=tls.lab.local"><table key="subject"><elem key="commonName">tls.lab.local</elem></table></script>
+<script id="ssl-cert" output="Subject: commonName=tls.lab.local"><table key="subject"><elem key="commonName">tls.lab.local</elem></table><table key="extensions"><table><elem key="name">X509v3 Subject Alternative Name</elem><elem key="value">DNS:tls.lab.local</elem></table></table></script>
 </port>
 </ports>
 </host>
