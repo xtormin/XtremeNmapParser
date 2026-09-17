@@ -125,6 +125,7 @@
       "group.service": "Servicio", "group.product": "Producto", "group.num": "Puerto",
       "group.ip": "Host", "group.osFamily": "Sistema operativo",
       "table.hint": "▾ en cada columna para filtrar · clic en una fila abre el detalle · ↑ ↓ recorre · Esc cierra",
+      "table.resize": "Arrastra para cambiar el ancho · doble clic ajusta al contenido",
       "table.csv": "Exportar selección a CSV",
       "table.empty": "Ninguna fila cumple el filtro actual.",
       "table.capped": "Mostrando {shown} de {total} filas. Afina el filtro o exporta a CSV para verlas todas.",
@@ -218,6 +219,7 @@
       "group.service": "Service", "group.product": "Product", "group.num": "Port",
       "group.ip": "Host", "group.osFamily": "Operating system",
       "table.hint": "▾ on any column to filter · click a row for its detail · ↑ ↓ to walk · Esc to close",
+      "table.resize": "Drag to resize · double-click to fit the content",
       "table.csv": "Export selection to CSV",
       "table.empty": "No row matches the current filter.",
       "table.capped": "Showing {shown} of {total} rows. Narrow the filter or export to CSV to see them all.",
@@ -530,7 +532,8 @@
     groupBy: "service",   // how the Servicios tab buckets the open ports
     openGroups: new Set(),
     rescanProfile: "",    // which set of nmap arguments the nmap shape uses
-    rescanArgs: ""        // typed by hand when the profile is "custom"
+    rescanArgs: "",       // typed by hand when the profile is "custom"
+    colWidths: {}         // column key -> pinned width in px, once resized
   };
 
   /** Recomputed on every language change: it shows in filters and in the CSV. */
@@ -1354,6 +1357,43 @@
         return commandsFor(rows, rescanArgs()); } }
   ];
 
+  // --- Copying the filtered selection ---------------------------------------
+  //
+  // Servicios hands over one group at a time; here the unit is the whole
+  // filtered set, which is what the query bar and the column filters have just
+  // been used to arrive at.  The order is the table's own sort, so what lands
+  // on the clipboard reads like what is on screen.
+
+  var COPY_SHAPES = {
+    // A host with no port at all (a host that answered but has nothing in the
+    // scan) has nothing to say in this shape, so it is left out rather than
+    // copied as "10.0.0.1:null".
+    hostport: function (rows) {
+      return unique(rows.filter(function (row) { return row.num !== null; })
+        .map(function (row) { return row.ip + ":" + row.num; }));
+    },
+    ip: function (rows) {
+      return unique(rows.map(function (row) { return row.ip; }));
+    }
+  };
+
+  function copyShapeLines(id) {
+    var build = COPY_SHAPES[id];
+    return build ? build(sortRows(selected())) : [];
+  }
+
+  /** Each button says how many lines it would copy, recomputed with the table. */
+  function syncCopyTargets() {
+    Array.prototype.slice.call(document.querySelectorAll(".copy-shape"))
+      .forEach(function (button) {
+        var id = button.getAttribute("data-copy-shape");
+        var count = copyShapeLines(id).length;
+        button.innerHTML = esc(t("shape." + id)) +
+          ' <span class="n">' + count + "</span>";
+        button.disabled = count === 0;
+      });
+  }
+
   // --- The rescan bar -------------------------------------------------------
   //
   // The same control appears in Servicios and in Datos, because both tabs show
@@ -1764,18 +1804,120 @@
     return '<span class="dot" style="background:' + cssVar(color) + '"></span>' + esc(dash(value));
   }
 
+  // --- column widths --------------------------------------------------------
+  //
+  // The table sizes itself to its content until a border is dragged.  From
+  // that first drag every column is pinned in pixels, including the ones
+  // nobody touched: leaving the rest free to reflow would move the very border
+  // being dragged, and the column would never land where it was aimed.
+
+  var MIN_COL = 46;
+  //: A column wide enough to hold the longest NSE-fed extrainfo stops being a
+  //: column; past this, the cell keeps its ellipsis and the detail panel has
+  //: the whole value anyway.
+  var MAX_AUTOFIT = 560;
+
+  function tableNode() { return el("table-scroll").querySelector("table"); }
+
+  /** True once every column has a width, i.e. once anything has been resized. */
+  function columnsPinned() {
+    return COLUMNS.every(function (column) { return state.colWidths[column.key]; });
+  }
+
+  /** Freeze at their current on-screen width the columns not yet pinned. */
+  function pinColumns() {
+    var cells = el("thead-row").children;
+    COLUMNS.forEach(function (column, index) {
+      if (!state.colWidths[column.key] && cells[index]) {
+        state.colWidths[column.key] = Math.round(cells[index].getBoundingClientRect().width);
+      }
+    });
+  }
+
+  /** Write the pinned widths into the colgroup; unpinned means "size yourself". */
+  function renderColumnWidths() {
+    var pinned = columnsPinned();
+    var total = 0;
+    el("colgroup").innerHTML = COLUMNS.map(function (column) {
+      var width = state.colWidths[column.key];
+      if (!pinned) return "<col>";
+      total += width;
+      return '<col style="width:' + width + 'px">';
+    }).join("");
+
+    var table = tableNode();
+    table.classList.toggle("sized", pinned);
+    // As wide as its columns and no wider: with `width: 100%` the browser
+    // hands any slack back to the columns, which would undo the drag.
+    table.style.width = pinned ? total + "px" : "";
+  }
+
+  /** Give one column the width its longest cell actually needs. */
+  function autofitColumn(index) {
+    var table = tableNode();
+    var saved = {};
+    COLUMNS.forEach(function (column) { saved[column.key] = state.colWidths[column.key]; });
+
+    // Measured with the browser's own table algorithm rather than by adding up
+    // characters: drop every constraint, let it lay the table out once, and
+    // read the column back.  `measuring` lifts the truncation caps so what
+    // comes back is the content's width and not the cap's.
+    el("colgroup").innerHTML = COLUMNS.map(function () { return "<col>"; }).join("");
+    table.classList.remove("sized");
+    table.classList.add("measuring");
+    table.style.width = "";
+    var natural = Math.ceil(el("thead-row").children[index].getBoundingClientRect().width);
+    table.classList.remove("measuring");
+
+    COLUMNS.forEach(function (column) { state.colWidths[column.key] = saved[column.key]; });
+    // The rest keep what the reader sees now, which is what they were just
+    // measured at, so only the double-clicked column moves.
+    pinColumns();
+    state.colWidths[COLUMNS[index].key] = Math.max(MIN_COL, Math.min(MAX_AUTOFIT, natural));
+    renderColumnWidths();
+  }
+
+  /** Drag one border. Every column is pinned first so only this one moves. */
+  function startColumnDrag(grip, event) {
+    var index = parseInt(grip.getAttribute("data-col"), 10);
+    var key = COLUMNS[index].key;
+    pinColumns();
+    renderColumnWidths();
+
+    var startX = event.clientX;
+    var startWidth = state.colWidths[key];
+    grip.classList.add("dragging");
+    document.body.classList.add("resizing");
+
+    function move(moved) {
+      state.colWidths[key] = Math.max(MIN_COL, startWidth + (moved.clientX - startX));
+      renderColumnWidths();
+    }
+    function stop() {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", stop);
+      grip.classList.remove("dragging");
+      document.body.classList.remove("resizing");
+    }
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", stop);
+  }
+
   function renderTable(rows) {
     var sorted = sortRows(rows);
 
-    el("thead-row").innerHTML = COLUMNS.map(function (column) {
+    el("thead-row").innerHTML = COLUMNS.map(function (column, index) {
       var arrow = state.sort.key === column.key
         ? '<span class="arrow">' + (state.sort.dir === 1 ? "↑" : "↓") + "</span>" : "";
       return '<th><span class="th-label" data-sort="' + esc(column.key) + '">' +
         esc(columnLabel(column.key)) + arrow + "</span>" +
         '<button class="filter-btn" data-filter="' + esc(column.key) +
-        '" aria-label="' + esc(columnLabel(column.key)) + '">\u25be</button></th>';
+        '" aria-label="' + esc(columnLabel(column.key)) + '">\u25be</button>' +
+        '<span class="col-grip" data-col="' + index + '" title="' +
+        esc(t("table.resize")) + '"></span></th>';
     }).join("");
     markFilterButtons();
+    renderColumnWidths();
 
     if (!sorted.length) {
       VISIBLE = [];
@@ -2129,8 +2271,10 @@
     renderActiveFilters();
     renderGroups(rows);
     renderTable(rows);
-    // Last of the three: the button says how many commands the *current*
-    // selection produces, so it has to be recomputed with everything else.
+    // Last of the three: the buttons say how many lines and how many commands
+    // the *current* selection produces, so both are recomputed with everything
+    // else.
+    syncCopyTargets();
     syncRescanBar();
     if (state.menu) renderFilterList();
     syncDrawer();
@@ -2365,6 +2509,29 @@
       state.filters = {};
       closeFilterMenu();
       setQuery("");
+    });
+
+    // The grip sits inside the header cell, so its events have to be taken off
+    // the sort and filter handlers before they reach them.
+    el("thead-row").addEventListener("mousedown", function (event) {
+      var grip = event.target.closest(".col-grip");
+      if (!grip) return;
+      event.preventDefault();
+      startColumnDrag(grip, event);
+    });
+
+    el("thead-row").addEventListener("dblclick", function (event) {
+      var grip = event.target.closest(".col-grip");
+      if (!grip) return;
+      event.preventDefault();
+      autofitColumn(parseInt(grip.getAttribute("data-col"), 10));
+    });
+
+    el("panel-data").addEventListener("click", function (event) {
+      var button = event.target.closest(".copy-shape");
+      if (!button) return;
+      copyText(copyShapeLines(button.getAttribute("data-copy-shape")).join("\n"),
+               document.querySelector(".copy-targets-copied"));
     });
 
     el("csv").addEventListener("click", exportCsv);

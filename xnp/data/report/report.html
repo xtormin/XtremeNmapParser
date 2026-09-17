@@ -58,13 +58,15 @@
 
   <section id="panel-summary" class="panel active" role="tabpanel">
     <div id="kpis" class="kpis"></div>
+    <!-- The order is the order of the questions: what is open, on which
+         hosts, on which ports, running what, on what system. -->
     <div class="charts">
-      <div class="card" id="card-tags"><h2 data-i18n="chart.tags"></h2><div class="chart-box"><canvas id="chart-tags"></canvas></div></div>
       <div class="card" id="card-states"><h2 data-i18n="chart.states"></h2><div class="chart-box"><canvas id="chart-states"></canvas></div></div>
-      <div class="card" id="card-services"><h2 data-i18n="chart.services"></h2><div class="chart-box"><canvas id="chart-services"></canvas></div></div>
-      <div class="card" id="card-ports"><h2 data-i18n="chart.ports"></h2><div class="chart-box"><canvas id="chart-ports"></canvas></div></div>
       <div class="card" id="card-hosts"><h2 data-i18n="chart.hosts"></h2><div class="chart-box"><canvas id="chart-hosts"></canvas></div></div>
+      <div class="card" id="card-ports"><h2 data-i18n="chart.ports"></h2><div class="chart-box"><canvas id="chart-ports"></canvas></div></div>
+      <div class="card" id="card-services"><h2 data-i18n="chart.services"></h2><div class="chart-box"><canvas id="chart-services"></canvas></div></div>
       <div class="card" id="card-os"><h2 data-i18n="chart.os"></h2><div class="chart-box"><canvas id="chart-os"></canvas></div></div>
+      <div class="card" id="card-tags"><h2 data-i18n="chart.tags"></h2><div class="chart-box"><canvas id="chart-tags"></canvas></div></div>
     </div>
   </section>
 
@@ -103,6 +105,15 @@
       <div class="table-tools">
         <span style="font-size:12px;color:var(--text-3)" data-i18n="table.hint"></span>
         <span class="grow"></span>
+        <!-- The same shapes the Servicios tab offers per group, here over the
+             whole filtered selection: the table is where you arrive at that
+             selection, so it is where you hand it over. -->
+        <span class="copy-targets">
+          <span class="copy-targets-label" data-i18n="targets.copyAs"></span>
+          <button type="button" class="copy-shape" data-copy-shape="hostport"></button>
+          <button type="button" class="copy-shape" data-copy-shape="ip"></button>
+        </span>
+        <span class="copy-targets-copied g-copied" data-i18n="targets.copied" hidden></span>
         <span class="rescan">
           <select id="data-rescan-profile" class="rescan-profile" data-i18n-aria="rescan.profile"></select>
           <button type="button" class="rescan-copy"></button>
@@ -115,6 +126,7 @@
       </div>
       <div class="table-scroll" id="table-scroll">
         <table>
+          <colgroup id="colgroup"></colgroup>
           <thead><tr id="thead-row"></tr></thead>
           <tbody id="tbody"></tbody>
         </table>

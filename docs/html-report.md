@@ -97,6 +97,16 @@ that column's own filter, so a menu shows what you could still pick rather than
 only what you already picked. Active filters appear as chips above the table and
 clear individually.
 
+Column widths are dragged from the right edge of a header cell, and a double
+click on that same edge fits the column to its content. Touching one pins them
+all: were the others left free to reflow, the border being dragged would move
+along with the pointer and the column would never land where it was aimed.
+
+*Copy targets as* puts the whole selection on the clipboard — not just the page
+on screen — in the table's own sort order: `host:port` one line per port, `IP
+only` one line per host with no repeats. The number on each button is the number
+of lines it will copy, so you know what you are taking before you click.
+
 Clicking a row slides out a side panel with the whole record: why the row carries
 its interest label, port and service detail, host detail, OS matches, CPEs, the
 other ports on the same host as clickable chips, the raw NSE output and the

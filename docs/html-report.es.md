@@ -104,6 +104,17 @@ columna siempre excluyen el filtro de esa misma columna, así que el menú ense�
 lo que todavía podrías elegir en vez de solo lo que ya elegiste. Los filtros
 activos aparecen como chips sobre la tabla y se quitan uno a uno.
 
+El ancho de cada columna se ajusta arrastrando su borde derecho en la cabecera,
+y un doble clic sobre ese mismo borde la ajusta a su contenido. En cuanto tocas
+una, todas quedan fijadas: si las demás siguieran recolocándose, el borde que
+estás arrastrando se movería contigo y la columna nunca acabaría donde apuntas.
+
+*Copiar objetivos como* se lleva al portapapeles la selección entera —no solo
+la página que se ve— en el mismo orden en que está ordenada la tabla:
+`host:puerto` una línea por puerto, `solo IP` una línea por host sin repetir.
+El número de cada botón es el número de líneas que va a copiar, así que sabes
+lo que te llevas antes de pulsar.
+
 Al pulsar una fila se despliega un panel lateral con el registro completo: por
 qué la fila lleva su etiqueta de interés, detalle del puerto y del servicio,
 detalle del host, coincidencias de SO, CPE, los demás puertos del mismo host
