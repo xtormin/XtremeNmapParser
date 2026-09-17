@@ -151,10 +151,21 @@ xnp -d nmap/ -oF html
 
 Recorre la carpeta recursivamente, fusiona todos los escaneos en un único
 informe y deduplica hosts y puertos entre ficheros, quedándose con el escaneo
-que identificó más detalle de servicio. La cabecera dice cuántos ficheros
-entraron, y la tabla gana una columna *Origen* —con su propio filtro— para que
-sigas sabiendo de qué escaneo vino cada fila. Con `--no-merger` obtienes un
-informe por XML, y con `--no-recursive` el recorrido se queda en el primer nivel.
+que identificó más detalle de servicio. La tabla gana una columna *Origen*
+—con su propio filtro— para que sigas sabiendo de qué escaneo vino cada fila.
+Con `--no-merger` obtienes un informe por XML, y con `--no-recursive` el
+recorrido se queda en el primer nivel.
+
+En el pie, el chip *ficheros* dice cuántos entraron y se despliega en una lista
+con una fila por fichero: nombre, fecha de inicio y la línea de comandos de
+nmap que lo produjo. Cuando el informe viene de un solo XML no hay lista: ese
+comando se ve directamente en el chip `$` del pie. Al imprimir, la lista sale
+siempre, esté desplegada o no.
+
+El nombre de cada fichero se pulsa y deja la tabla en `source="…"`, que es el
+mismo campo que filtra la columna *Origen*: de «con qué se escaneó esto» a «qué
+salió de ahí» en un clic. Pulsar otro fichero sustituye el filtro en vez de
+sumarse a él.
 
 ## La etiqueta de interés y las etiquetas
 

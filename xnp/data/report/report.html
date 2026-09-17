@@ -150,6 +150,11 @@
       </svg>
       <span data-i18n="foot.repo"></span>
     </a>
+    <!-- One row per input file.  The chips only have room for the nmap command
+         line when the report comes from a single scan, so with several the
+         count chip opens this list instead. -->
+    <div class="scan-list" id="scan-list" hidden role="group"
+         data-i18n-aria="a11y.scanList"></div>
   </footer>
 </div>
 

@@ -62,6 +62,13 @@ Released versions of [XNP](https://github.com/xtormin/XtremeNmapParser).
   double-click it to fit the column to its content: a long hostname stops
   living behind an ellipsis. Touching one column pins them all, because
   otherwise the border would slide away from the pointer mid-drag.
+- **The footer's _files_ chip opens the nmap command of every file that went
+  in.** A report built from one XML already showed its command line in a chip;
+  a merged one had no room for several, so the count chip now unfolds a list
+  with one row per file — name, start time and the arguments that produced it.
+  The *Source* column tells you which file a row came from; this tells you what
+  that file was scanned with, and clicking a name filters the table down to that
+  file. It prints whether or not it is open.
 - **The query-language help is behind an info button** next to *Clear*, instead
   of holding a paragraph under the search bar on every tab for ever. The choice
   is remembered.

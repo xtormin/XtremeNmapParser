@@ -162,7 +162,8 @@
       "a11y.suggestions": "Sugerencias",
       "a11y.hint_toggle": "Cómo se busca",
       "a11y.filter_menu": "Filtro de columna",
-      "a11y.drawer": "Detalle de la fila seleccionada"
+      "a11y.drawer": "Detalle de la fila seleccionada",
+      "a11y.scanList": "Comando de nmap de cada fichero"
     },
     en: {
       "tab.summary": "Summary", "tab.targets": "Services", "tab.data": "Data",
@@ -256,7 +257,8 @@
       "a11y.suggestions": "Suggestions",
       "a11y.hint_toggle": "How to search",
       "a11y.filter_menu": "Column filter",
-      "a11y.drawer": "Detail of the selected row"
+      "a11y.drawer": "Detail of the selected row",
+      "a11y.scanList": "The nmap command of each file"
     }
   };
 
@@ -332,7 +334,12 @@
       chip("", scans[0].startstr);
       chip("$", scans[0].args);
     } else if (scans.length) {
-      chip(t("meta.files"), String(scans.length));
+      // Several files means several command lines, and they do not fit in a
+      // chip -- the count opens the list that carries one command per file.
+      chips.push('<button type="button" id="scans-toggle" aria-controls="scan-list"' +
+                 ' class="chip chip-btn' + (state.scansOpen ? " on" : "") + '"' +
+                 ' aria-expanded="' + (state.scansOpen ? "true" : "false") + '">' +
+                 "<b>" + esc(t("meta.files")) + "</b> " + scans.length + "</button>");
       var versions = [];
       scans.forEach(function (scan) {
         if (scan.version && versions.indexOf(scan.version) === -1) versions.push(scan.version);
@@ -341,10 +348,50 @@
     }
     chip(t("meta.hosts"), String((DATA.hosts || []).length));
     el("meta").innerHTML = chips.join("");
+    renderScanList();
 
     el("brand-title").textContent = reportTitle();
     el("foot-generated").textContent = t("foot.generated",
       { v: DATA.xnp_version, d: DATA.generated_at });
+  }
+
+  /**
+   * The list behind the "files" chip: which arguments produced which file.
+   * Only a multi-file report has it; a single scan shows its command in a chip.
+   */
+  function renderScanList() {
+    var scans = DATA.scans || [];
+    var box = el("scan-list");
+    if (scans.length < 2) {
+      box.innerHTML = "";
+      box.hidden = true;
+      return;
+    }
+    box.innerHTML = scans.map(function (scan) {
+      // The full path goes in the tooltip: the rows line up on the basename,
+      // and a directory run of a deep tree would push the command off-screen.
+      var name = scan.file ? String(scan.file).split(/[\\/]/).pop() : blank();
+      // The name filters the table down to that file, the way every other
+      // value in the report drills: it is the same field as the Origen column.
+      var file = scan.file
+        ? '<button type="button" class="scan-file" data-source="' + esc(scan.file) + '"' +
+          ' title="' + esc(scan.file) + '">' + esc(name) + "</button>"
+        : '<span class="scan-file">' + esc(name) + "</span>";
+      return '<div class="scan-row">' + file +
+        '<span class="scan-when">' + esc(scan.startstr || "") + "</span>" +
+        '<code class="scan-args">' + esc(scan.args || blank()) + "</code></div>";
+    }).join("");
+    box.hidden = !state.scansOpen;
+  }
+
+  function showScans(open) {
+    state.scansOpen = !!open;
+    var toggle = el("scans-toggle");
+    el("scan-list").hidden = !open;
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", String(!!open));
+      toggle.classList.toggle("on", !!open);
+    }
   }
 
   function showHint(open) {
@@ -531,6 +578,7 @@
     menu: null,           // key of the column whose filter menu is open
     groupBy: "service",   // how the Servicios tab buckets the open ports
     openGroups: new Set(),
+    scansOpen: false,     // the per-file command list under the footer chips
     rescanProfile: "",    // which set of nmap arguments the nmap shape uses
     rescanArgs: "",       // typed by hand when the profile is "custom"
     colWidths: {}         // column key -> pinned width in px, once resized
@@ -2322,6 +2370,17 @@
       showHint(el("hint").hidden);
     });
 
+    // The chip is rebuilt on every language change, so the listener hangs on
+    // the footer row, which survives it.
+    el("meta").addEventListener("click", function (event) {
+      if (event.target.closest("#scans-toggle")) showScans(el("scan-list").hidden);
+    });
+
+    el("scan-list").addEventListener("click", function (event) {
+      var file = event.target.closest("button[data-source]");
+      if (file) applyTerms([["source", file.getAttribute("data-source")]]);
+    });
+
     el("export-targets").addEventListener("click", exportAllTargets);
 
     el("groups").addEventListener("click", function (event) {
@@ -2536,8 +2595,18 @@
 
     el("csv").addEventListener("click", exportCsv);
 
+    // A keystroke that lands in a field belongs to the field: the rescan
+    // arguments carry paths, and a shortcut that eats the "/" of -oN /tmp/out
+    // leaves the field unusable. The same goes for j and k inside text.
+    function typing(node) {
+      if (!node) return false;
+      if (node.isContentEditable) return true;
+      var tag = node.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+    }
+
     document.addEventListener("keydown", function (event) {
-      if (document.activeElement === input) return;
+      if (typing(document.activeElement)) return;
       if (state.menu) return;
       if (event.key === "/") { event.preventDefault(); input.focus(); return; }
       if (event.key === "Escape" && state.selected !== null) { closeDrawer(); return; }

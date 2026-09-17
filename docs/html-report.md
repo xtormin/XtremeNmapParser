@@ -143,10 +143,19 @@ xnp -d nmap/ -oF html
 
 Walks the folder recursively, merges every scan into a single report and
 deduplicates hosts and ports across files, keeping whichever scan identified the
-most service detail. The header says how many files went in, and the table grows
-a *Source* column — with its own filter — so you can still tell which scan a row
-came from. `--no-merger` gives you one report per XML instead, and
-`--no-recursive` keeps the walk at the top level.
+most service detail. The table grows a *Source* column — with its own filter —
+so you can still tell which scan a row came from. `--no-merger` gives you one
+report per XML instead, and `--no-recursive` keeps the walk at the top level.
+
+In the footer, the *files* chip says how many went in and opens a list with one
+row per file: name, start time and the nmap command line that produced it. A
+report built from a single XML has no list — that command sits in the footer's
+`$` chip instead. Printing always includes the list, open or not.
+
+Clicking a file name leaves the table on `source="…"`, the same field the
+*Source* column filters on: from "what was this scanned with" to "what came out
+of it" in one click. Clicking another file replaces the filter rather than
+adding to it.
 
 ## The interest label and the tags
 

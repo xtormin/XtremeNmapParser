@@ -158,6 +158,18 @@ header {
 }
 .chip b { color: var(--text); font-weight: 500; }
 
+/* The count chip that opens the per-file command list.  The caret is the only
+   thing that says it is a button: it has to keep the chip's shape to stay in
+   line with the chips beside it. */
+.chip-btn::after {
+  content: "\25be";
+  display: inline-block;
+  margin-left: 6px;
+  transition: transform .12s ease;
+}
+.chip-btn.on::after { transform: rotate(180deg); }
+.chip-btn:hover { color: var(--text); border-color: var(--accent); }
+
 button, .btn {
   font: inherit;
   font-size: 12px;
@@ -964,6 +976,59 @@ footer .foot-repo:hover { color: var(--accent-text); border-color: var(--accent)
    came from, which matters less than the data itself once you're reading it. */
 .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
+/* One row per input file, opened from the count chip.  The three columns are
+   declared on the list and the rows fold into it, so the commands line up
+   under each other however long the file names are. */
+.scan-list {
+  width: 100%;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  gap: 5px 12px;
+  align-items: baseline;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+.scan-row { display: contents; }
+/* The name is a button -- it filters the table by that file -- but it has to
+   read as the label of its row, so it keeps none of the button chrome. */
+.scan-file {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--text-2);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  text-align: left;
+}
+button.scan-file:hover {
+  color: var(--accent-text);
+  background: none;
+  text-decoration: underline;
+}
+.scan-when { white-space: nowrap; }
+.scan-args {
+  font-family: var(--mono);
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  /* Three columns on a phone leave the command a sliver: stack them instead. */
+  .scan-list { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .scan-row { display: block; margin-bottom: 8px; }
+  .scan-when { margin-left: 8px; }
+  .scan-args { display: inline-block; margin-top: 3px; }
+}
+
 @media (max-width: 900px) {
   #drawer { width: 100vw; }
   #filter-menu { width: calc(100vw - 16px); }
@@ -977,4 +1042,9 @@ footer .foot-repo:hover { color: var(--accent-text); border-color: var(--accent)
   .panel { display: block !important; page-break-before: always; }
   .table-scroll, .g-list { max-height: none; overflow: visible; }
   .card, .kpi, .table-card { border-color: #ccc; }
+  /* The toggle is a footer button, hidden above -- so print the list always,
+     or a report of several files goes to paper without its commands.  The file
+     names are buttons too, and that rule would take the names with it. */
+  #scan-list[hidden] { display: grid; }
+  #scan-list button { display: inline; }
 }

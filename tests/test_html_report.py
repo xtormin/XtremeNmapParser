@@ -291,6 +291,34 @@ def test_no_spanish_is_left_hard_coded_in_the_markup():
         assert spanish not in markup
 
 
+def test_a_merged_report_can_still_name_the_command_behind_each_file(report, xml):
+    """The chips only fit one command line; a directory run carries several."""
+    payload = html_report.build_payload(
+        [report("single_host"), report("multi_host")],
+        sources=[xml("single_host"), xml("multi_host")])
+    assert len(payload["scans"]) == 2
+    for scan in payload["scans"]:
+        assert scan["file"]
+        assert scan["args"]
+
+
+def test_the_scan_list_is_wired_to_the_chip_that_opens_it():
+    """It is the only place a merged report shows the nmap command of a file."""
+    markup = html_report.TEMPLATE.read_text(encoding="utf-8")
+    assert 'id="scan-list"' in markup
+    script = report_script()
+    assert 'aria-controls="scan-list"' in script
+    assert "function renderScanList(" in script
+
+
+def test_the_file_name_in_the_scan_list_drills_on_the_source_field():
+    """Clicking it has to reach the same field the Origen column filters on."""
+    script = report_script()
+    assert 'button[data-source]' in script
+    assert 'applyTerms([["source", file.getAttribute("data-source")]])' in script
+    assert 'source: "source"' in script          # the query language knows the field
+
+
 def test_the_empty_cell_marker_is_translated():
     """It shows in the column filters and in the exported CSV, in both languages."""
     script = html_report.SCRIPT.read_text(encoding="utf-8")
@@ -347,7 +375,7 @@ def test_the_rescan_bar_ships_in_both_languages():
     spanish, english = message_tables()
     wanted = {"rescan.profile", "rescan.custom", "rescan.hint", "rescan.argsPlaceholder",
                "rescan.copyAll", "rescan.copyOne", "rescan.copyNone"}
-    assert {"foot.repo", "a11y.hint_toggle"} <= spanish
+    assert {"foot.repo", "a11y.hint_toggle", "a11y.scanList"} <= spanish
     assert wanted <= spanish
     assert wanted <= english
 
@@ -373,6 +401,18 @@ def test_the_rescan_control_sits_in_the_toolbar_of_both_tabs():
         assert 'class="rescan-profile"' in toolbar
         assert 'class="rescan-copy"' in toolbar
         assert sibling in toolbar
+
+
+def test_the_shortcuts_keep_their_hands_off_the_fields():
+    """The rescan arguments carry paths: a "/" typed there is part of
+    -oN /tmp/out, not the shortcut that focuses the search box."""
+    script = report_script()
+    handler = script[script.index('document.addEventListener("keydown"'):]
+    assert "typing(document.activeElement)" in handler[:handler.index('event.key === "/"')]
+    typing = script[script.index("function typing("):]
+    body = typing[:typing.index("\n    }")]
+    for tag in ('"INPUT"', '"TEXTAREA"', '"SELECT"', "isContentEditable"):
+        assert tag in body
 
 
 def test_the_query_help_is_behind_a_toggle():

@@ -68,6 +68,13 @@ Versiones publicadas de [XNP](https://github.com/xtormin/XtremeNmapParser).
   contenido: un hostname largo deja de vivir detrás de unos puntos suspensivos.
   Tocar una columna fija todas, porque si las demás siguieran recolocándose el
   borde se escaparía del puntero mientras se arrastra.
+- **El chip *ficheros* del pie despliega el comando de nmap de cada fichero que
+  entró.** Un informe de un solo XML ya enseñaba su línea de comandos en un
+  chip; uno fusionado no tenía sitio para varias, así que ahora el chip del
+  recuento abre una lista con una fila por fichero: nombre, fecha de inicio y
+  los argumentos que lo produjeron. La columna *Origen* dice de qué fichero
+  viene una fila; esto dice con qué se escaneó ese fichero, y pulsar un nombre
+  deja la tabla en ese fichero. Al imprimir sale esté desplegada o no.
 - **La ayuda del lenguaje de consulta está detrás de un botón de información**
   junto a *Limpiar*, en vez de ocupar un párrafo bajo el buscador en todas las
   pestañas para siempre. La elección se recuerda.
