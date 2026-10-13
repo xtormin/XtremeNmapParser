@@ -990,6 +990,9 @@ footer .foot-repo:hover { color: var(--accent-text); border-color: var(--accent)
   border-top: 1px solid var(--border);
   font-size: 11px;
 }
+/* The display above outranks the browser's own [hidden] rule, so without this
+   the list sits open under the footer before anyone touches the chip. */
+#scan-list[hidden] { display: none; }
 .scan-row { display: contents; }
 /* The name is a button -- it filters the table by that file -- but it has to
    read as the label of its row, so it keeps none of the button chrome. */

@@ -311,6 +311,15 @@ def test_the_scan_list_is_wired_to_the_chip_that_opens_it():
     assert "function renderScanList(" in script
 
 
+def test_the_scan_list_starts_folded_until_the_chip_opens_it():
+    """Its display:grid outranks [hidden]; without the override it shows open."""
+    markup = html_report.TEMPLATE.read_text(encoding="utf-8")
+    tag = markup[markup.index('id="scan-list"'):]
+    assert " hidden " in tag[:tag.index(">")]
+    css = html_report.STYLESHEET.read_text(encoding="utf-8")
+    assert "#scan-list[hidden] { display: none; }" in css
+
+
 def test_the_file_name_in_the_scan_list_drills_on_the_source_field():
     """Clicking it has to reach the same field the Origen column filters on."""
     script = report_script()
