@@ -109,11 +109,15 @@ y un doble clic sobre ese mismo borde la ajusta a su contenido. En cuanto tocas
 una, todas quedan fijadas: si las demás siguieran recolocándose, el borde que
 estás arrastrando se movería contigo y la columna nunca acabaría donde apuntas.
 
-*Copiar objetivos como* se lleva al portapapeles la selección entera —no solo
-la página que se ve— en el mismo orden en que está ordenada la tabla:
-`host:puerto` una línea por puerto, `solo IP` una línea por host sin repetir.
-El número de cada botón es el número de líneas que va a copiar, así que sabes
-lo que te llevas antes de pulsar.
+El desplegable de copia se lleva al portapapeles la selección entera —no solo
+la página que se ve— en el mismo orden en que está ordenada la tabla, en una de
+cuatro formas: `IP:puerto` y `Hostname:puerto` una línea por puerto, `Solo IP`
+y `Solo hostname` una línea por host sin repetir. Una fila que no tiene nada
+que decir en esa forma se queda fuera en vez de copiarse a medias: un host que
+el escaneo no resolvió no aporta líneas a las dos formas de hostname. Cada
+opción lleva entre paréntesis el número de líneas que va a copiar, y el botón
+lo repite, así que sabes lo que te llevas antes de pulsar. El informe recuerda
+la última forma elegida.
 
 Al pulsar una fila se despliega un panel lateral con el registro completo: por
 qué la fila lleva su etiqueta de interés, detalle del puerto y del servicio,

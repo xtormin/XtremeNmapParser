@@ -102,10 +102,14 @@ click on that same edge fits the column to its content. Touching one pins them
 all: were the others left free to reflow, the border being dragged would move
 along with the pointer and the column would never land where it was aimed.
 
-*Copy targets as* puts the whole selection on the clipboard — not just the page
-on screen — in the table's own sort order: `host:port` one line per port, `IP
-only` one line per host with no repeats. The number on each button is the number
-of lines it will copy, so you know what you are taking before you click.
+The copy dropdown puts the whole selection on the clipboard — not just the page
+on screen — in the table's own sort order, in one of four shapes: `IP:port` and
+`Hostname:port` one line per port, `IP only` and `Hostname only` one line per
+host with no repeats. A row with nothing to say in a shape is left out rather
+than copied half-empty: a host the scan never resolved adds no lines to the two
+hostname shapes. Each option shows in brackets the number of lines it will
+copy, and the button repeats it, so you know what you are taking before you
+click. The report remembers the last shape you picked.
 
 Clicking a row slides out a side panel with the whole record: why the row carries
 its interest label, port and service detail, host detail, OS matches, CPEs, the

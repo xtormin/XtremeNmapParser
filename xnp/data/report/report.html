@@ -105,13 +105,12 @@
       <div class="table-tools">
         <span style="font-size:12px;color:var(--text-3)" data-i18n="table.hint"></span>
         <span class="grow"></span>
-        <!-- The same shapes the Servicios tab offers per group, here over the
-             whole filtered selection: the table is where you arrive at that
-             selection, so it is where you hand it over. -->
+        <!-- The targets of the whole filtered selection: the table is where you
+             arrive at that selection, so it is where you hand it over.  The
+             shapes are filled from the script, each with its line count. -->
         <span class="copy-targets">
-          <span class="copy-targets-label" data-i18n="targets.copyAs"></span>
-          <button type="button" class="copy-shape" data-copy-shape="hostport"></button>
-          <button type="button" class="copy-shape" data-copy-shape="ip"></button>
+          <select id="copy-shape" class="copy-shape" data-i18n-aria="targets.copyAs"></select>
+          <button type="button" id="copy-targets-copy"></button>
         </span>
         <span class="copy-targets-copied g-copied" data-i18n="targets.copied" hidden></span>
         <span class="rescan">

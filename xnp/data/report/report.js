@@ -113,6 +113,10 @@
       "targets.hosts": "hosts", "targets.ports": "puertos",
       "shape.hostport": "host:puerto", "shape.ip": "solo IP",
       "shape.url": "URL", "shape.nmap": "nmap",
+      "copy.ipport": "IP:puerto", "copy.hostnameport": "Hostname:puerto",
+      "copy.ip": "Solo IP", "copy.hostname": "Solo hostname",
+      "copy.all": "Copiar {n} objetivos", "copy.one": "Copiar 1 objetivo",
+      "copy.none": "Nada que copiar",
       "rescan.profile": "Reescanear con", "rescan.custom": "personalizado",
       "rescan.argsPlaceholder": "-sV --script vuln -Pn",
       "rescan.hint": "nmap {args} — solo puertos abiertos de la selección, agrupados por firma",
@@ -208,6 +212,10 @@
       "targets.hosts": "hosts", "targets.ports": "ports",
       "shape.hostport": "host:port", "shape.ip": "IP only",
       "shape.url": "URL", "shape.nmap": "nmap",
+      "copy.ipport": "IP:port", "copy.hostnameport": "Hostname:port",
+      "copy.ip": "IP only", "copy.hostname": "Hostname only",
+      "copy.all": "Copy {n} targets", "copy.one": "Copy 1 target",
+      "copy.none": "Nothing to copy",
       "rescan.profile": "Rescan with", "rescan.custom": "custom",
       "rescan.argsPlaceholder": "-sV --script vuln -Pn",
       "rescan.hint": "nmap {args} — open ports in the selection only, grouped by signature",
@@ -581,6 +589,7 @@
     scansOpen: false,     // the per-file command list under the footer chips
     rescanProfile: "",    // which set of nmap arguments the nmap shape uses
     rescanArgs: "",       // typed by hand when the profile is "custom"
+    copyShape: "ipport",  // which shape the Datos copy control hands over
     colWidths: {}         // column key -> pinned width in px, once resized
   };
 
@@ -1411,35 +1420,76 @@
   // filtered set, which is what the query bar and the column filters have just
   // been used to arrive at.  The order is the table's own sort, so what lands
   // on the clipboard reads like what is on screen.
+  //
+  // A row that has nothing to say in a shape is left out of it rather than
+  // copied half-empty: a host with no port at all is not "10.0.0.1:null", and
+  // an address the scan never resolved is not a hostname.
 
-  var COPY_SHAPES = {
-    // A host with no port at all (a host that answered but has nothing in the
-    // scan) has nothing to say in this shape, so it is left out rather than
-    // copied as "10.0.0.1:null".
-    hostport: function (rows) {
-      return unique(rows.filter(function (row) { return row.num !== null; })
-        .map(function (row) { return row.ip + ":" + row.num; }));
-    },
-    ip: function (rows) {
-      return unique(rows.map(function (row) { return row.ip; }));
-    }
-  };
+  var COPY_SHAPES = [
+    { id: "ipport", build: function (rows) {
+        return unique(rows.filter(function (row) { return row.num !== null; })
+          .map(function (row) { return row.ip + ":" + row.num; })); } },
+    { id: "hostnameport", build: function (rows) {
+        return unique(rows.filter(function (row) { return row.hostname && row.num !== null; })
+          .map(function (row) { return row.hostname + ":" + row.num; })); } },
+    { id: "ip", build: function (rows) {
+        return unique(rows.map(function (row) { return row.ip; })); } },
+    { id: "hostname", build: function (rows) {
+        return unique(rows.map(function (row) { return row.hostname; })); } }
+  ];
 
   function copyShapeLines(id) {
-    var build = COPY_SHAPES[id];
-    return build ? build(sortRows(selected())) : [];
+    var shape = COPY_SHAPES.filter(function (entry) { return entry.id === id; })[0];
+    return shape ? shape.build(sortRows(selected())) : [];
   }
 
-  /** Each button says how many lines it would copy, recomputed with the table. */
+  /**
+   * Every option says how many lines it would copy, so a shape that comes out
+   * empty -- no hostnames in this scan -- is visible before it is picked, and
+   * the button repeats the count of the one that is.
+   */
   function syncCopyTargets() {
-    Array.prototype.slice.call(document.querySelectorAll(".copy-shape"))
-      .forEach(function (button) {
-        var id = button.getAttribute("data-copy-shape");
-        var count = copyShapeLines(id).length;
-        button.innerHTML = esc(t("shape." + id)) +
-          ' <span class="n">' + count + "</span>";
-        button.disabled = count === 0;
-      });
+    var rows = sortRows(selected());
+    var counts = {};
+    COPY_SHAPES.forEach(function (shape) { counts[shape.id] = shape.build(rows).length; });
+
+    var select = el("copy-shape");
+    if (!select.options.length) {
+      select.innerHTML = COPY_SHAPES.map(function (shape) {
+        return '<option value="' + shape.id + '"></option>';
+      }).join("");
+    }
+    Array.prototype.slice.call(select.options).forEach(function (option) {
+      option.textContent = t("copy." + option.value) + " (" + counts[option.value] + ")";
+    });
+    select.value = state.copyShape;
+
+    var count = counts[state.copyShape] || 0;
+    var button = el("copy-targets-copy");
+    button.textContent = count === 0 ? t("copy.none")
+      : count === 1 ? t("copy.one") : t("copy.all", { n: count });
+    button.disabled = count === 0;
+  }
+
+  /** The shape is a habit of the reader's, so it outlives the page. */
+  function initCopyTargets() {
+    try {
+      var saved = localStorage.getItem("xnp-copy-shape");
+      if (COPY_SHAPES.some(function (shape) { return shape.id === saved; })) state.copyShape = saved;
+    } catch (err) { /* private mode */ }
+
+    el("copy-shape").addEventListener("change", function (event) {
+      state.copyShape = event.target.value;
+      try { localStorage.setItem("xnp-copy-shape", state.copyShape); } catch (err) { /* private mode */ }
+      syncCopyTargets();
+    });
+
+    el("copy-targets-copy").addEventListener("click", function () {
+      var lines = copyShapeLines(state.copyShape);
+      if (!lines.length) return;
+      copyText(lines.join("\n"), document.querySelector(".copy-targets-copied"));
+    });
+    syncCopyTargets();
   }
 
   // --- The rescan bar -------------------------------------------------------
@@ -2360,6 +2410,7 @@
     });
 
     initRescanBars();
+    initCopyTargets();
 
     // The query syntax is a one-off read: shown on ask, and remembered for
     // the reader who wants it up, the same way the theme and language are.
@@ -2584,13 +2635,6 @@
       if (!grip) return;
       event.preventDefault();
       autofitColumn(parseInt(grip.getAttribute("data-col"), 10));
-    });
-
-    el("panel-data").addEventListener("click", function (event) {
-      var button = event.target.closest(".copy-shape");
-      if (!button) return;
-      copyText(copyShapeLines(button.getAttribute("data-copy-shape")).join("\n"),
-               document.querySelector(".copy-targets-copied"));
     });
 
     el("csv").addEventListener("click", exportCsv);

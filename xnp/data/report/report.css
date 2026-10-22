@@ -461,23 +461,27 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
 /* --- Copying the filtered selection --------------------------------------
  *
- * The same pills the Servicios tab puts under a group, in the toolbar of the
- * table: the shape is the choice, and the count on each is what tells the
- * reader which one they meant before they click it.
+ * Four shapes would be four pills in a toolbar that already holds the rescan
+ * control and the CSV export, so the shape is a selector welded to its copy
+ * button, the same segmented control the rescan uses.
  */
-.copy-targets { display: inline-flex; align-items: center; gap: 6px; }
-.copy-targets-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  color: var(--text-3);
+.copy-targets { display: inline-flex; align-items: stretch; }
+.copy-shape {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--sans);
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius) 0 0 var(--radius);
+  border-right: 0;
+  padding: 5px 6px 5px 9px;
 }
-.copy-shape { font-size: 11.5px; padding: 4px 11px; border-radius: 999px; font-family: var(--mono); }
-.copy-shape:hover { border-color: var(--accent); color: var(--accent-text); }
-.copy-shape .n { color: var(--text-3); font-size: 10.5px; }
-.copy-shape:disabled { opacity: .5; cursor: default; }
-.copy-shape:disabled:hover { background: var(--surface); color: var(--text-2); border-color: var(--border-strong); }
+.copy-shape:hover { color: var(--text); }
+#copy-targets-copy { border-radius: 0 var(--radius) var(--radius) 0; }
+#copy-targets-copy:disabled { opacity: .5; cursor: default; }
+#copy-targets-copy:disabled:hover { background: var(--surface); color: var(--text-2); }
 
 .group {
   background: var(--surface);

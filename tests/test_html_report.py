@@ -412,6 +412,26 @@ def test_the_rescan_control_sits_in_the_toolbar_of_both_tabs():
         assert sibling in toolbar
 
 
+def test_the_data_tab_copies_targets_from_one_selector():
+    """Four shapes would be four pills in an already full toolbar: the shape
+    is a dropdown welded to a single copy button, in both languages."""
+    markup = report_markup()
+    tools = markup[markup.index('class="table-tools"'):markup.index('class="table-scroll"')]
+    assert '<select id="copy-shape"' in tools
+    assert 'id="copy-targets-copy"' in tools
+    assert 'data-copy-shape' not in tools
+
+    script = report_script()
+    shapes = script[script.index("var COPY_SHAPES = ["):script.index("function copyShapeLines(")]
+    ids = re.findall(r'id: "([a-z]+)"', shapes)
+    assert ids == ["ipport", "hostnameport", "ip", "hostname"]
+
+    spanish, english = message_tables()
+    wanted = {"copy." + shape for shape in ids} | {"copy.all", "copy.one", "copy.none"}
+    assert wanted <= spanish
+    assert wanted <= english
+
+
 def test_the_shortcuts_keep_their_hands_off_the_fields():
     """The rescan arguments carry paths: a "/" typed there is part of
     -oN /tmp/out, not the shortcut that focuses the search box."""

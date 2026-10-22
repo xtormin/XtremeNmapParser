@@ -58,11 +58,13 @@ Versiones publicadas de [XNP](https://github.com/xtormin/XtremeNmapParser).
   actual —todo, o lo que haya dejado el filtro— y el número de la etiqueta
   sigue al filtro en vivo, así que ves cómo `service:ssh` convierte siete
   comandos en uno antes de pulsar.
-- **Botones *Copiar objetivos como* en la pestaña Datos**, con las mismas dos
-  formas que ya ofrecía Servicios por grupo —`host:puerto` y `solo IP`— pero
-  sobre la selección filtrada entera y en el orden en que esté ordenada la
-  tabla. El número de cada botón es el de líneas que copia, así que se ve lo
-  que se lleva antes de pulsar.
+- **Un desplegable para copiar objetivos en la pestaña Datos**, con cuatro
+  formas —`IP:puerto`, `Hostname:puerto`, `Solo IP` y `Solo hostname`— sobre
+  la selección filtrada entera y en el orden en que esté ordenada la tabla.
+  Cada opción lleva el número de líneas que copia, así que se ve lo que se
+  lleva antes de pulsar, y los hosts sin nombre resuelto se quedan fuera de
+  las formas de hostname en vez de copiarse vacíos. El informe recuerda la
+  última forma elegida.
 - **Las columnas de la tabla se pueden ensanchar.** Se arrastra el borde
   derecho de la cabecera, y un doble clic sobre él ajusta la columna a su
   contenido: un hostname largo deja de vivir detrás de unos puntos suspensivos.
