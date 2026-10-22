@@ -412,19 +412,24 @@ def test_the_rescan_control_sits_in_the_toolbar_of_both_tabs():
         assert sibling in toolbar
 
 
-def test_the_data_tab_copies_targets_from_one_selector():
-    """Four shapes would be four pills in an already full toolbar: the shape
-    is a dropdown welded to a single copy button, in both languages."""
+def test_targets_are_copied_from_one_selector_in_both_tabs():
+    """A pill per shape would crowd the toolbar and every group: the shape is
+    a dropdown welded to a single copy button, in both languages."""
     markup = report_markup()
     tools = markup[markup.index('class="table-tools"'):markup.index('class="table-scroll"')]
     assert '<select id="copy-shape"' in tools
     assert 'id="copy-targets-copy"' in tools
-    assert 'data-copy-shape' not in tools
 
     script = report_script()
-    shapes = script[script.index("var COPY_SHAPES = ["):script.index("function copyShapeLines(")]
+    shapes = script[script.index("var SHAPES = ["):script.index("var COPY_SHAPES =")]
     ids = re.findall(r'id: "([a-z]+)"', shapes)
-    assert ids == ["ipport", "hostnameport", "ip", "hostname"]
+    assert ids == ["ipport", "hostnameport", "ip", "hostname", "url", "nmap"]
+    datos = script[script.index("var COPY_SHAPES ="):script.index("function shapeById(")]
+    assert '["ipport", "hostnameport", "ip", "hostname"]' in datos
+
+    group = script[script.index("function groupBody("):script.index("// --- Excel-style")]
+    assert 'class="copy-shape group-shape"' in group
+    assert 'class="shape"' not in group
 
     spanish, english = message_tables()
     wanted = {"copy." + shape for shape in ids} | {"copy.all", "copy.one", "copy.none"}

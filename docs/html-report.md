@@ -9,14 +9,20 @@ xnp -f scan.xml -oF html
 ## Copying targets out
 
 On the **Services** tab, each group of open ports copies in the shape the next
-tool wants:
+tool wants, picked from a dropdown beside the copy button:
 
 | Shape | What you get |
 | --- | --- |
-| `host:port` | `10.0.0.14:445`, one per line — for most tooling's `-iL` |
-| IP only | deduplicated addresses, one per line |
+| `IP:port` | `10.0.0.14:445`, one per line — for most tooling's `-iL` |
+| `Hostname:port` | `web01.corp.local:445`, one per line — hosts with no resolved name are left out |
+| `IP only` | deduplicated addresses, one per line |
+| `Hostname only` | deduplicated names, one per line |
 | `URL` | `https://web01.corp.local:8443` — HTTP services only, scheme inferred from the TLS tunnel and the port, hostname preferred over the address |
-| `nmap` | rescan commands for the group — see below |
+| `nmap commands` | rescan commands for the group — see below |
+
+Each option shows in brackets the number of lines it would copy for that group,
+and the button repeats it. The shape you pick holds for every group — the next
+one you expand is already on it — and the report remembers it.
 
 *Download every target* writes every group to one file with a comment header per
 group. *Detail* on any row jumps to it in the table with its side panel open.
@@ -36,8 +42,8 @@ into *Copy 1 nmap command* tells you what you are about to get before you
 click. Open ports only: a closed port is not worth a second look, so a
 selection with none disables the button and says so.
 
-Inside an expanded group, the `nmap` shape does the same thing for that group
-alone, next to `host:port`, `IP only` and `URL`.
+Inside an expanded group, the dropdown's `nmap commands` shape does the same
+thing for that group alone.
 
 A port list in nmap applies to every target of the invocation, so a single
 command over a group of hosts would probe ports most of them do not have.

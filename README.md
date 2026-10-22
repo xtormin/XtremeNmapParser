@@ -241,7 +241,7 @@ are all inlined, so it opens on an air-gapped laptop and survives being emailed.
 | Tab | What it answers |
 | --- | --- |
 | **Summary** | What is exposed? Five figures and six charts, each one clickable into the data |
-| **Services** | What do I do next? Open ports grouped by service, with one-click target lists (`host:port`, IPs, URLs, or [rescan commands](#targeted-rescan)) |
+| **Services** | What do I do next? Open ports grouped by service, with one-click target lists (`IP:port`, `Hostname:port`, IPs, hostnames, URLs, or [rescan commands](#targeted-rescan)) |
 | **Data** | Everything nmap produced: sortable columns, Excel-style filters, a detail panel per row |
 
 One filter is shared across all three, and every figure recomputes from it. The

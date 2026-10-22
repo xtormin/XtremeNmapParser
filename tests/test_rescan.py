@@ -406,11 +406,11 @@ JSON.parse(require("fs").readFileSync(0, "utf8")).forEach(function (testCase) {
 
 
 def javascript_block():
-    """The report's port of this module, from its marker to the shape list."""
+    """The report's port of this module, from its marker to the copy shapes."""
     source = (Path(rescan.__file__).parent / "data" / "report" / "report.js").read_text(
         encoding="utf-8")
     return source[source.index("  // --- Targeted rescan"):
-                  source.index("  var TARGET_SHAPES = [")]
+                  source.index("  // --- Copying targets")]
 
 
 def test_no_two_functions_in_the_report_share_a_name():

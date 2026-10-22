@@ -250,7 +250,7 @@ sobrevive a que lo mandes por correo.
 | Pestaña | Qué responde |
 | --- | --- |
 | **Resumen** | ¿Qué hay expuesto? Cinco cifras y seis gráficas, y cada una filtra los datos al pulsarla |
-| **Servicios** | ¿Y ahora qué? Puertos abiertos agrupados por servicio, con listas de objetivos de un clic (`host:puerto`, IP, URL o [comandos de reescaneo](#reescaneo-dirigido)) |
+| **Servicios** | ¿Y ahora qué? Puertos abiertos agrupados por servicio, con listas de objetivos de un clic (`IP:puerto`, `Hostname:puerto`, IP, hostname, URL o [comandos de reescaneo](#reescaneo-dirigido)) |
 | **Datos** | Todo lo que produjo nmap: columnas ordenables, filtros estilo Excel y un panel de detalle por fila |
 
 Las tres comparten un filtro, y todas las cifras se recalculan sobre él. La

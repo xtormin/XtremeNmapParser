@@ -53,9 +53,11 @@ Released versions of [XNP](https://github.com/xtormin/XtremeNmapParser).
   commands for the current selection — everything, or whatever the filter has
   left — and the count in the label follows the filter live, so you can see
   that `service:ssh` collapses seven commands into one before you click.
-- **A copy-targets dropdown on the Data tab**, with four shapes — `IP:port`,
-  `Hostname:port`, `IP only` and `Hostname only` — over the whole filtered
-  selection and in the table's own sort order. Each option shows the number of
+- **A copy-targets dropdown on the Data tab and in every Services group**,
+  with the shapes `IP:port`, `Hostname:port`, `IP only` and `Hostname only`;
+  the Services groups add `URL` and `nmap commands`. On Data it copies the
+  whole filtered selection in the table's own sort order, and on Services the
+  shape you pick holds for every group. Each option shows the number of
   lines it copies, so you can see what you are taking before you click, and
   hosts with no resolved name are left out of the hostname shapes rather than
   copied blank. The report remembers the last shape you picked.

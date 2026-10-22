@@ -9,14 +9,21 @@ xnp -f scan.xml -oF html
 ## Sacar los objetivos
 
 En la pestaña **Servicios**, cada grupo de puertos abiertos se copia con el
-formato que espera la siguiente herramienta:
+formato que espera la siguiente herramienta, elegido en un desplegable junto al
+botón de copia:
 
 | Formato | Qué te llevas |
 | --- | --- |
-| `host:puerto` | `10.0.0.14:445`, uno por línea — para el `-iL` de casi cualquier herramienta |
-| `solo IP` | direcciones deduplicadas, una por línea |
+| `IP:puerto` | `10.0.0.14:445`, uno por línea — para el `-iL` de casi cualquier herramienta |
+| `Hostname:puerto` | `web01.corp.local:445`, uno por línea — los hosts sin nombre resuelto se quedan fuera |
+| `Solo IP` | direcciones deduplicadas, una por línea |
+| `Solo hostname` | nombres deduplicados, uno por línea |
 | `URL` | `https://web01.corp.local:8443` — solo para servicios HTTP; el esquema se deduce del túnel TLS y del puerto, y se prefiere el hostname a la dirección |
-| `nmap` | comandos de reescaneo para el grupo — ver más abajo |
+| `Comandos nmap` | comandos de reescaneo para el grupo — ver más abajo |
+
+Cada opción lleva entre paréntesis las líneas que copiaría en ese grupo, y el
+botón repite la cifra. La forma elegida vale para todos los grupos —el
+siguiente que despliegues ya está en ella— y el informe la recuerda.
 
 *Descargar todos los objetivos* escribe todos los grupos en un fichero con una
 cabecera de comentario por grupo. *Detalle* en cualquier fila salta a ella en la
@@ -38,8 +45,8 @@ vivo, así que ver cómo `service:ssh` convierte *Copiar 7 comandos nmap* en
 puertos abiertos: un puerto cerrado no merece una segunda pasada, así que una
 selección sin ninguno deshabilita el botón y lo dice.
 
-Dentro de un grupo desplegado, el formato `nmap` hace lo mismo para ese grupo
-solo, junto a `host:puerto`, `solo IP` y `URL`.
+Dentro de un grupo desplegado, la forma `Comandos nmap` del desplegable hace lo
+mismo para ese grupo solo.
 
 En nmap la lista de puertos se aplica a todos los objetivos de la invocación,
 así que un único comando sobre un grupo de hosts sondearía puertos que la

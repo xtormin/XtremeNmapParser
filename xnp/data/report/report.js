@@ -111,10 +111,9 @@
       "targets.empty": "Ningún puerto abierto en la selección actual.",
       "targets.unidentified": "sin identificar", "targets.detail": "detalle",
       "targets.hosts": "hosts", "targets.ports": "puertos",
-      "shape.hostport": "host:puerto", "shape.ip": "solo IP",
-      "shape.url": "URL", "shape.nmap": "nmap",
       "copy.ipport": "IP:puerto", "copy.hostnameport": "Hostname:puerto",
       "copy.ip": "Solo IP", "copy.hostname": "Solo hostname",
+      "copy.url": "URL", "copy.nmap": "Comandos nmap",
       "copy.all": "Copiar {n} objetivos", "copy.one": "Copiar 1 objetivo",
       "copy.none": "Nada que copiar",
       "rescan.profile": "Reescanear con", "rescan.custom": "personalizado",
@@ -210,10 +209,9 @@
       "targets.empty": "No open ports in the current selection.",
       "targets.unidentified": "unidentified", "targets.detail": "detail",
       "targets.hosts": "hosts", "targets.ports": "ports",
-      "shape.hostport": "host:port", "shape.ip": "IP only",
-      "shape.url": "URL", "shape.nmap": "nmap",
       "copy.ipport": "IP:port", "copy.hostnameport": "Hostname:port",
       "copy.ip": "IP only", "copy.hostname": "Hostname only",
+      "copy.url": "URL", "copy.nmap": "nmap commands",
       "copy.all": "Copy {n} targets", "copy.one": "Copy 1 target",
       "copy.none": "Nothing to copy",
       "rescan.profile": "Rescan with", "rescan.custom": "custom",
@@ -590,6 +588,7 @@
     rescanProfile: "",    // which set of nmap arguments the nmap shape uses
     rescanArgs: "",       // typed by hand when the profile is "custom"
     copyShape: "ipport",  // which shape the Datos copy control hands over
+    groupShape: "ipport", // which shape every Servicios group hands over
     colWidths: {}         // column key -> pinned width in px, once resized
   };
 
@@ -1400,32 +1399,19 @@
     return chosen ? chosen.args : "";
   }
 
-  var TARGET_SHAPES = [
-    { id: "hostport", build: function (rows) {
-        return unique(rows.map(function (r) { return r.ip + ":" + r.num; })); } },
-    { id: "ip", build: function (rows) {
-        return unique(rows.map(function (r) { return r.ip; })); } },
-    { id: "url", build: function (rows) {
-        return unique(rows.map(urlFor).filter(Boolean)); } },
-    // One command per port signature, so the badge counts commands.  No "#"
-    // comment lines: they would make that count a lie, and the whole list goes
-    // to the clipboard to be pasted straight into a shell.
-    { id: "nmap", build: function (rows) {
-        return commandsFor(rows, rescanArgs()); } }
-  ];
-
-  // --- Copying the filtered selection ---------------------------------------
+  // --- Copying targets -------------------------------------------------------
   //
-  // Servicios hands over one group at a time; here the unit is the whole
-  // filtered set, which is what the query bar and the column filters have just
-  // been used to arrive at.  The order is the table's own sort, so what lands
-  // on the clipboard reads like what is on screen.
+  // One list of shapes for both tabs.  Servicios hands over one group at a
+  // time and offers all of them; Datos hands over the whole filtered set,
+  // which is what the query bar and the column filters have just been used to
+  // arrive at, in the table's own sort.  Datos leaves out URL and nmap: it
+  // holds closed ports too, and its rescan bar already gives the commands.
   //
   // A row that has nothing to say in a shape is left out of it rather than
   // copied half-empty: a host with no port at all is not "10.0.0.1:null", and
   // an address the scan never resolved is not a hostname.
 
-  var COPY_SHAPES = [
+  var SHAPES = [
     { id: "ipport", build: function (rows) {
         return unique(rows.filter(function (row) { return row.num !== null; })
           .map(function (row) { return row.ip + ":" + row.num; })); } },
@@ -1435,11 +1421,46 @@
     { id: "ip", build: function (rows) {
         return unique(rows.map(function (row) { return row.ip; })); } },
     { id: "hostname", build: function (rows) {
-        return unique(rows.map(function (row) { return row.hostname; })); } }
+        return unique(rows.map(function (row) { return row.hostname; })); } },
+    { id: "url", build: function (rows) {
+        return unique(rows.map(urlFor).filter(Boolean)); } },
+    // One command per port signature, so the count is a count of commands.
+    // No "#" comment lines: they would make that count a lie, and the whole
+    // list goes to the clipboard to be pasted straight into a shell.
+    { id: "nmap", build: function (rows) {
+        return commandsFor(rows, rescanArgs()); } }
   ];
 
+  var COPY_SHAPES = SHAPES.filter(function (shape) {
+    return ["ipport", "hostnameport", "ip", "hostname"].indexOf(shape.id) !== -1;
+  });
+
+  function shapeById(shapes, id) {
+    return shapes.filter(function (shape) { return shape.id === id; })[0];
+  }
+
+  /** What the copy button says: how many lines, or commands, it will copy. */
+  function copyLabel(id, count) {
+    if (count === 0) return t("copy.none");
+    if (id === "nmap") return count === 1 ? t("rescan.copyOne") : t("rescan.copyAll", { n: count });
+    return count === 1 ? t("copy.one") : t("copy.all", { n: count });
+  }
+
+  /** The shape is a habit of the reader's, so it outlives the page. */
+  function savedShape(key, shapes, fallback) {
+    try {
+      var saved = localStorage.getItem(key);
+      if (shapeById(shapes, saved)) return saved;
+    } catch (err) { /* private mode */ }
+    return fallback;
+  }
+
+  function saveShape(key, id) {
+    try { localStorage.setItem(key, id); } catch (err) { /* private mode */ }
+  }
+
   function copyShapeLines(id) {
-    var shape = COPY_SHAPES.filter(function (entry) { return entry.id === id; })[0];
+    var shape = shapeById(COPY_SHAPES, id);
     return shape ? shape.build(sortRows(selected())) : [];
   }
 
@@ -1466,21 +1487,17 @@
 
     var count = counts[state.copyShape] || 0;
     var button = el("copy-targets-copy");
-    button.textContent = count === 0 ? t("copy.none")
-      : count === 1 ? t("copy.one") : t("copy.all", { n: count });
+    button.textContent = copyLabel(state.copyShape, count);
     button.disabled = count === 0;
   }
 
-  /** The shape is a habit of the reader's, so it outlives the page. */
   function initCopyTargets() {
-    try {
-      var saved = localStorage.getItem("xnp-copy-shape");
-      if (COPY_SHAPES.some(function (shape) { return shape.id === saved; })) state.copyShape = saved;
-    } catch (err) { /* private mode */ }
+    state.copyShape = savedShape("xnp-copy-shape", COPY_SHAPES, state.copyShape);
+    state.groupShape = savedShape("xnp-group-shape", SHAPES, state.groupShape);
 
     el("copy-shape").addEventListener("change", function (event) {
       state.copyShape = event.target.value;
-      try { localStorage.setItem("xnp-copy-shape", state.copyShape); } catch (err) { /* private mode */ }
+      saveShape("xnp-copy-shape", state.copyShape);
       syncCopyTargets();
     });
 
@@ -1698,13 +1715,17 @@
   }
 
   function groupBody(name, rows) {
-    var shapes = TARGET_SHAPES.map(function (shape) {
-      var lines = shape.build(rows);
-      if (!lines.length) return "";
-      return '<button class="shape" data-shape="' + esc(shape.id) + '" data-group="' +
-        esc(name) + '">' + esc(t("shape." + shape.id)) +
-        ' <span class="n">' + lines.length + "</span></button>";
+    // Each option carries its count, so switching shape relabels the button
+    // without rebuilding the group -- and without taking the focus away from
+    // a selector being stepped through with the arrow keys.
+    var counts = {};
+    var options = SHAPES.map(function (shape) {
+      counts[shape.id] = shape.build(rows).length;
+      return '<option value="' + shape.id + '" data-n="' + counts[shape.id] + '"' +
+        (shape.id === state.groupShape ? " selected" : "") + ">" +
+        esc(t("copy." + shape.id)) + " (" + counts[shape.id] + ")</option>";
     }).join("");
+    var count = counts[state.groupShape] || 0;
 
     var listing = rows.slice().sort(function (a, b) {
       return ipKey(a.ip) - ipKey(b.ip) || a.num - b.num;
@@ -1719,8 +1740,12 @@
     }).join("");
 
     return '<div class="g-body">' +
-      '<div class="g-actions"><span class="g-actions-label">' + esc(t("targets.copyAs")) +
-      "</span>" + shapes +
+      '<div class="g-actions"><span class="copy-targets">' +
+      '<select class="copy-shape group-shape" aria-label="' + esc(t("targets.copyAs")) + '">' +
+      options + "</select>" +
+      '<button type="button" class="copy-targets-copy" data-copy-group="' + esc(name) + '"' +
+      (count === 0 ? " disabled" : "") + ">" + esc(copyLabel(state.groupShape, count)) +
+      "</button></span>" +
       '<span class="g-copied" hidden>' + esc(t("targets.copied")) + "</span></div>" +
       '<ul class="g-list">' + listing + "</ul></div>";
   }
@@ -2434,8 +2459,25 @@
 
     el("export-targets").addEventListener("click", exportAllTargets);
 
+    // One shape for every group: the next group opened is already on it.
+    el("groups").addEventListener("change", function (event) {
+      var select = event.target.closest(".group-shape");
+      if (!select) return;
+      state.groupShape = select.value;
+      saveShape("xnp-group-shape", state.groupShape);
+      Array.prototype.slice.call(el("groups").querySelectorAll(".g-actions"))
+        .forEach(function (actions) {
+          var other = actions.querySelector(".group-shape");
+          var button = actions.querySelector(".copy-targets-copy");
+          other.value = state.groupShape;
+          var count = parseInt(other.options[other.selectedIndex].getAttribute("data-n"), 10);
+          button.textContent = copyLabel(state.groupShape, count);
+          button.disabled = count === 0;
+        });
+    });
+
     el("groups").addEventListener("click", function (event) {
-      var head = event.target.closest("button[data-group]:not([data-shape])");
+      var head = event.target.closest("button[data-group]");
       if (head) {
         var name = head.getAttribute("data-group");
         if (state.openGroups.has(name)) state.openGroups.delete(name);
@@ -2444,18 +2486,17 @@
         return;
       }
 
-      var shape = event.target.closest("button[data-shape]");
-      if (shape) {
-        var groupName = shape.getAttribute("data-group");
-        var wanted = TARGET_SHAPES.filter(function (shapeDef) {
-          return shapeDef.id === shape.getAttribute("data-shape");
-        })[0];
+      var copy = event.target.closest("button[data-copy-group]");
+      if (copy) {
+        var groupName = copy.getAttribute("data-copy-group");
+        var wanted = shapeById(SHAPES, state.groupShape);
         var bucket = groupRows(selected().filter(isOpen)).filter(function (entry) {
           return entry[0] === groupName;
         })[0];
         if (!wanted || !bucket) return;
-        copyText(wanted.build(bucket[1]).join("\n"),
-                 shape.closest(".g-actions").querySelector(".g-copied"));
+        var lines = wanted.build(bucket[1]);
+        if (!lines.length) return;
+        copyText(lines.join("\n"), copy.closest(".g-actions").querySelector(".g-copied"));
         return;
       }
 
